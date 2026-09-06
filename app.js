@@ -1,4 +1,6 @@
 const QUIZ_LENGTH = 10;
+const ANSWER_REVEAL_DELAY_MS = 260;
+const CARD_ADVANCE_DELAY_MS = 820;
 
 const MODES = {
   woman_trans: {
@@ -8,6 +10,7 @@ const MODES = {
       { id: "woman", label: "Woman", symbol: "♀" },
       { id: "trans", label: "Trans", symbol: "⚧" },
     ],
+    categories: ["woman", "trans-woman"],
     modeLabel: "Woman / Trans",
     modeIcon: "♀/⚧",
   },
@@ -18,6 +21,7 @@ const MODES = {
       { id: "man", label: "Man", symbol: "♂" },
       { id: "trans", label: "Trans", symbol: "⚧" },
     ],
+    categories: ["man", "trans-man"],
     modeLabel: "Man / Trans",
     modeIcon: "♂/⚧",
   },
@@ -29,9 +33,9 @@ const LEVELS = [
 ];
 
 const DEMO_LEADERBOARD = [
+  { name: "monkey", score: 50, avatar: "🐵", avatarClass: "avatar-monkey", featured: true },
   { name: "pipo", score: 90, avatar: "P", avatarClass: "avatar-yellow" },
   { name: "fish54", score: 70, avatar: "F", avatarClass: "avatar-blue" },
-  { name: "monkey", score: 50, avatar: "🐵", avatarClass: "" },
   { name: "anna", score: 20, avatar: "A", avatarClass: "avatar-red" },
 ];
 
@@ -268,13 +272,22 @@ function renderChoices() {
   all("[data-choice]").forEach((button, index) => button.addEventListener("click", () => choose(button.dataset.choice, index ? 1 : -1)));
 }
 
+function getCardsForMode(cards, mode) {
+  const config = MODES[mode];
+  if (!config) return [];
+  const allowedCategories = new Set(config.categories);
+  const allowedAnswers = new Set(config.choices.map((choice) => choice.id));
+  return cards.filter((card) =>
+    allowedCategories.has(card.category) && allowedAnswers.has(card.labels?.[mode])
+  );
+}
+
 async function startQuiz() {
   const launchButtons = all("[data-action='start'], [data-action='again']");
   launchButtons.forEach((button) => { button.disabled = true; button.setAttribute("aria-busy", "true"); });
   try {
     const allCards = await window.SpotCheckData.loadCards();
-    const allowedAnswers = new Set(MODES[state.mode].choices.map((choice) => choice.id));
-    const modeCards = allCards.filter((card) => allowedAnswers.has(card.labels?.[state.mode]));
+    const modeCards = getCardsForMode(allCards, state.mode);
     if (modeCards.length < 2) throw new Error("This mode needs at least two valid portrait entries.");
 
     const deviceHash = await anonymousDeviceHash();
@@ -360,13 +373,13 @@ function choose(choice, direction) {
     active.classList.add("is-leaving");
     active.style.transform = `translateX(${direction * 145}%) rotate(${direction * 19}deg)`;
     active.style.opacity = "0";
-  }, 150);
+  }, ANSWER_REVEAL_DELAY_MS);
 
   window.setTimeout(() => {
     state.index += 1;
     if (state.index >= state.quizLength) finishQuiz();
     else { renderCard(); state.locked = false; }
-  }, 500);
+  }, CARD_ADVANCE_DELAY_MS);
 }
 
 function undoLastChoice() {
@@ -428,22 +441,30 @@ async function renderLeaderboard() {
     return `<li class="leaderboard-entry"><span class="avatar ${avatarClass}">${initial}</span><b>You</b><span class="bar"><i style="--score: ${entry.score}%"></i></span><strong>${entry.score}%</strong></li>`;
   }).join("");
 
-  const demoEntries = DEMO_LEADERBOARD.map((entry) =>
-    `<li class="leaderboard-entry demo"><span class="avatar ${entry.avatarClass}">${entry.avatar}</span><b>${entry.name}<small>demo</small></b><span class="bar"><i style="--score: ${entry.score}%"></i></span><strong>${entry.score}%</strong></li>`
-  ).join("");
+  const renderDemoEntry = (entry) => {
+    const featuredClass = entry.featured ? " featured-monkey" : "";
+    const avatar = entry.featured
+      ? `<span class="monkey-face" aria-hidden="true">${entry.avatar}</span>`
+      : entry.avatar;
+    const detail = entry.featured ? "featured demo" : "demo";
+    return `<li class="leaderboard-entry demo${featuredClass}"><span class="avatar ${entry.avatarClass}">${avatar}</span><b>${entry.name}<small>${detail}</small></b><span class="bar"><i style="--score: ${entry.score}%"></i></span><strong>${entry.score}%</strong></li>`;
+  };
+  const featuredEntries = DEMO_LEADERBOARD.filter((entry) => entry.featured).map(renderDemoEntry).join("");
+  const otherDemoEntries = DEMO_LEADERBOARD.filter((entry) => !entry.featured).map(renderDemoEntry).join("");
 
-  list.innerHTML = realEntries + demoEntries;
+  list.innerHTML = featuredEntries + realEntries + otherDemoEntries;
   animateLeaderboardEntries();
 }
 
 function animateLeaderboardEntries() {
   const entries = all("#leaderboard-list .leaderboard-entry");
   entries.forEach((entry, i) => {
+    const finalOpacity = entry.classList.contains("demo") && !entry.classList.contains("featured-monkey") ? "0.7" : "1";
     entry.style.opacity = "0";
     entry.style.transform = "translateY(20px)";
     entry.style.transition = "opacity 0.4s ease, transform 0.4s ease";
     window.setTimeout(() => {
-      entry.style.opacity = "1";
+      entry.style.opacity = finalOpacity;
       entry.style.transform = "translateY(0)";
     }, 200 + i * 80);
   });
@@ -605,8 +626,7 @@ function setupWordReel() {
 
 async function initIntroImage() {
   const cards = await window.SpotCheckData.loadCards();
-  const allowedAnswers = new Set(MODES[state.mode].choices.map((choice) => choice.id));
-  const modeCards = cards.filter((card) => allowedAnswers.has(card.labels?.[state.mode]));
+  const modeCards = getCardsForMode(cards, state.mode);
   el("#intro-meta").textContent = `${Math.min(QUIZ_LENGTH, modeCards.length)} cards · ~1 minute`;
   if (modeCards.length > 0) {
     const randomCard = modeCards[Math.floor(Math.random() * modeCards.length)];

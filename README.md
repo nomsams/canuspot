@@ -66,14 +66,14 @@ Add each image to `assets/manifest.json` with:
 - `alt` — accessible description
 - `category` — one of: `woman`, `trans-woman`, `trans-man`, `man`
 - `focus` — optional crop focus such as `{ "x": 50, "y": 38 }`
-- `labels` — object with correct answers for each mode:
+- `labels` — object with the correct answer for each applicable mode:
   - `woman_trans`: `"woman"` or `"trans"`
   - `man_trans`: `"man"` or `"trans"`
 
 Example:
 ```json
-{"id":"w-01","src":"assets/women/portrait-01.webp","title":"Portrait 1","alt":"Woman portrait","category":"woman","labels":{"woman_trans":"woman","man_trans":"woman"}}
-{"id":"twm-01","src":"assets/trans-woman-man/portrait-01.webp","title":"Portrait 2","alt":"Trans woman (MTF) portrait","category":"trans-woman","labels":{"woman_trans":"trans","man_trans":"woman"}}
+{"id":"w-01","src":"assets/women/portrait-01.webp","title":"Portrait 1","alt":"Woman portrait","category":"woman","labels":{"woman_trans":"woman"}}
+{"id":"twm-01","src":"assets/trans-woman-man/portrait-01.webp","title":"Portrait 2","alt":"Trans woman (MTF) portrait","category":"trans-woman","labels":{"woman_trans":"trans"}}
 ```
 
 Only use images you own or have explicit permission to publish. If real people are pictured, obtain consent for this exact quiz context. Avoid identity, health, ethnicity, sexuality, or other sensitive-trait guessing games.
@@ -83,7 +83,7 @@ Only use images you own or have explicit permission to publish. If real people a
 - **Woman / Trans** — Guess if the person is a cisgender woman or a trans woman (MTF)
 - **Man / Trans** — Guess if the person is a cisgender man or a trans man (FTM)
 
-Toggle modes using the header button. A round only includes cards whose answer belongs to that mode, and the deck alternates between the two answer groups before shuffling so one label cannot dominate the quiz.
+Toggle modes using the header button. A round only includes cards whose category and answer both belong to that mode, and the deck alternates between the two answer groups before shuffling so one label cannot dominate the quiz.
 
 ## GitHub Pages
 

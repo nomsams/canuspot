@@ -6,8 +6,7 @@
     "alt": "Woman portrait",
     "category": "woman",
     "labels": {
-      "woman_trans": "woman",
-      "man_trans": "woman"
+      "woman_trans": "woman"
     }
   },
   {
@@ -17,8 +16,7 @@
     "alt": "Woman portrait",
     "category": "woman",
     "labels": {
-      "woman_trans": "woman",
-      "man_trans": "woman"
+      "woman_trans": "woman"
     }
   },
   {
@@ -28,8 +26,7 @@
     "alt": "Woman portrait",
     "category": "woman",
     "labels": {
-      "woman_trans": "woman",
-      "man_trans": "woman"
+      "woman_trans": "woman"
     }
   },
   {
@@ -39,8 +36,7 @@
     "alt": "Trans woman (MTF) portrait",
     "category": "trans-woman",
     "labels": {
-      "woman_trans": "trans",
-      "man_trans": "woman"
+      "woman_trans": "trans"
     }
   },
   {
@@ -50,8 +46,7 @@
     "alt": "Trans woman (MTF) portrait",
     "category": "trans-woman",
     "labels": {
-      "woman_trans": "trans",
-      "man_trans": "woman"
+      "woman_trans": "trans"
     }
   },
   {
@@ -61,8 +56,7 @@
     "alt": "Trans woman (MTF) portrait",
     "category": "trans-woman",
     "labels": {
-      "woman_trans": "trans",
-      "man_trans": "woman"
+      "woman_trans": "trans"
     }
   },
   {
@@ -72,7 +66,6 @@
     "alt": "Trans man (FTM) portrait",
     "category": "trans-man",
     "labels": {
-      "woman_trans": "man",
       "man_trans": "trans"
     }
   },
@@ -83,7 +76,6 @@
     "alt": "Trans man (FTM) portrait",
     "category": "trans-man",
     "labels": {
-      "woman_trans": "man",
       "man_trans": "trans"
     }
   },
@@ -94,7 +86,6 @@
     "alt": "Trans man (FTM) portrait",
     "category": "trans-man",
     "labels": {
-      "woman_trans": "man",
       "man_trans": "trans"
     }
   },
@@ -105,7 +96,6 @@
     "alt": "Man portrait",
     "category": "man",
     "labels": {
-      "woman_trans": "man",
       "man_trans": "man"
     }
   },
@@ -116,7 +106,6 @@
     "alt": "Man portrait",
     "category": "man",
     "labels": {
-      "woman_trans": "man",
       "man_trans": "man"
     }
   },
@@ -127,7 +116,6 @@
     "alt": "Man portrait",
     "category": "man",
     "labels": {
-      "woman_trans": "man",
       "man_trans": "man"
     }
   },
