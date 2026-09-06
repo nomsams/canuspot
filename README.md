@@ -87,7 +87,14 @@ Toggle modes using the header button. A round only includes cards whose answer b
 
 ## GitHub Pages
 
-Push these files to a GitHub repository, then open **Settings → Pages** and deploy from the root of your default branch. No build command needed. Relative asset paths work when Pages serves under a repository subpath.
+The production site is entirely static and runs at `https://nomsams.github.io/canuspot/`:
+
+- `index.html`, `styles.css`, `app.js`, the manifest, and portrait files are served directly by GitHub Pages.
+- Quiz logic, scoring, image selection, personal statistics, and streaks run in the visitor's browser.
+- Browser `localStorage` holds device-local history. There is no application server, database, account system, or paid runtime dependency.
+- `npm run assets` is only a maintainer command for regenerating the checked-in manifest after adding images. Visitors and GitHub Pages do not run it.
+
+The workflow at `.github/workflows/pages.yml` validates and deploys the repository automatically after every push to `main`. For the repository's one-time setup, open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. No build command or hosting subscription is required. All runtime URLs are relative, so assets resolve correctly under the `/canuspot/` repository path.
 
 ## Data and future Supabase support
 
