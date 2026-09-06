@@ -1,0 +1,9 @@
+{
+  "name": "spot-check",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "assets": "node scripts/generate-manifest.mjs",
+    "check": "node --check app.js && node scripts/generate-manifest.mjs --check"
+  }
+}

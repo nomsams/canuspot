@@ -1,0 +1,904 @@
+[
+  {
+    "id": "w-01",
+    "src": "assets/women/study-01.svg",
+    "title": "Portrait 1",
+    "alt": "Woman portrait",
+    "category": "woman",
+    "labels": {
+      "woman_trans": "woman",
+      "man_trans": "woman"
+    }
+  },
+  {
+    "id": "w-02",
+    "src": "assets/women/study-02.svg",
+    "title": "Portrait 2",
+    "alt": "Woman portrait",
+    "category": "woman",
+    "labels": {
+      "woman_trans": "woman",
+      "man_trans": "woman"
+    }
+  },
+  {
+    "id": "w-03",
+    "src": "assets/women/study-03.svg",
+    "title": "Portrait 3",
+    "alt": "Woman portrait",
+    "category": "woman",
+    "labels": {
+      "woman_trans": "woman",
+      "man_trans": "woman"
+    }
+  },
+  {
+    "id": "twm-01",
+    "src": "assets/trans-woman-man/study-04.svg",
+    "title": "Portrait 4",
+    "alt": "Trans woman (MTF) portrait",
+    "category": "trans-woman",
+    "labels": {
+      "woman_trans": "trans",
+      "man_trans": "woman"
+    }
+  },
+  {
+    "id": "twm-02",
+    "src": "assets/trans-woman-man/study-05.svg",
+    "title": "Portrait 5",
+    "alt": "Trans woman (MTF) portrait",
+    "category": "trans-woman",
+    "labels": {
+      "woman_trans": "trans",
+      "man_trans": "woman"
+    }
+  },
+  {
+    "id": "twm-03",
+    "src": "assets/trans-woman-man/study-06.svg",
+    "title": "Portrait 6",
+    "alt": "Trans woman (MTF) portrait",
+    "category": "trans-woman",
+    "labels": {
+      "woman_trans": "trans",
+      "man_trans": "woman"
+    }
+  },
+  {
+    "id": "tmw-01",
+    "src": "assets/trans-man-woman/study-07.svg",
+    "title": "Portrait 7",
+    "alt": "Trans man (FTM) portrait",
+    "category": "trans-man",
+    "labels": {
+      "woman_trans": "man",
+      "man_trans": "trans"
+    }
+  },
+  {
+    "id": "tmw-02",
+    "src": "assets/trans-man-woman/study-08.svg",
+    "title": "Portrait 8",
+    "alt": "Trans man (FTM) portrait",
+    "category": "trans-man",
+    "labels": {
+      "woman_trans": "man",
+      "man_trans": "trans"
+    }
+  },
+  {
+    "id": "tmw-03",
+    "src": "assets/trans-man-woman/study-09.svg",
+    "title": "Portrait 9",
+    "alt": "Trans man (FTM) portrait",
+    "category": "trans-man",
+    "labels": {
+      "woman_trans": "man",
+      "man_trans": "trans"
+    }
+  },
+  {
+    "id": "m-01",
+    "src": "assets/men/study-10.svg",
+    "title": "Portrait 10",
+    "alt": "Man portrait",
+    "category": "man",
+    "labels": {
+      "woman_trans": "man",
+      "man_trans": "man"
+    }
+  },
+  {
+    "id": "m-02",
+    "src": "assets/men/study-11.svg",
+    "title": "Portrait 11",
+    "alt": "Man portrait",
+    "category": "man",
+    "labels": {
+      "woman_trans": "man",
+      "man_trans": "man"
+    }
+  },
+  {
+    "id": "m-03",
+    "src": "assets/men/study-12.svg",
+    "title": "Portrait 12",
+    "alt": "Man portrait",
+    "category": "man",
+    "labels": {
+      "woman_trans": "man",
+      "man_trans": "man"
+    }
+  },
+  {
+    "id": "woman-lady002",
+    "src": "assets/unsorted/lady002.jpg",
+    "title": "Portrait 13",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady006",
+    "src": "assets/unsorted/lady006.jpg",
+    "title": "Portrait 14",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady042",
+    "src": "assets/unsorted/lady042.jpg",
+    "title": "Portrait 15",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady112",
+    "src": "assets/unsorted/lady112.jpg",
+    "title": "Portrait 16",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady132",
+    "src": "assets/unsorted/lady132.jpg",
+    "title": "Portrait 17",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady310",
+    "src": "assets/unsorted/lady310.jpg",
+    "title": "Portrait 18",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady313",
+    "src": "assets/unsorted/lady313.jpg",
+    "title": "Portrait 19",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady321",
+    "src": "assets/unsorted/lady321.jpg",
+    "title": "Portrait 20",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady322",
+    "src": "assets/unsorted/lady322.jpg",
+    "title": "Portrait 21",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady333",
+    "src": "assets/unsorted/lady333.jpg",
+    "title": "Portrait 22",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady567",
+    "src": "assets/unsorted/lady567.jpg",
+    "title": "Portrait 23",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady675",
+    "src": "assets/unsorted/lady675.jpg",
+    "title": "Portrait 24",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady678",
+    "src": "assets/unsorted/lady678.jpg",
+    "title": "Portrait 25",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady778",
+    "src": "assets/unsorted/lady778.jpg",
+    "title": "Portrait 26",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "woman-lady889",
+    "src": "assets/unsorted/lady889.jpg",
+    "title": "Portrait 27",
+    "alt": "Portrait photo",
+    "category": "woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "woman"
+    }
+  },
+  {
+    "id": "trans-woman-ldb000",
+    "src": "assets/unsorted/ldb000.jpg",
+    "title": "Portrait 28",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb002",
+    "src": "assets/unsorted/ldb002.jpg",
+    "title": "Portrait 29",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb012",
+    "src": "assets/unsorted/ldb012.jpg",
+    "title": "Portrait 30",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb13",
+    "src": "assets/unsorted/ldb13§.jpg",
+    "title": "Portrait 31",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb019",
+    "src": "assets/unsorted/ldb019.jpg",
+    "title": "Portrait 32",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb022",
+    "src": "assets/unsorted/ldb022.jpg",
+    "title": "Portrait 33",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb030",
+    "src": "assets/unsorted/ldb030.jpg",
+    "title": "Portrait 34",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb032",
+    "src": "assets/unsorted/ldb032.jpg",
+    "title": "Portrait 35",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb037",
+    "src": "assets/unsorted/ldb037.jpg",
+    "title": "Portrait 36",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb042",
+    "src": "assets/unsorted/ldb042.jpg",
+    "title": "Portrait 37",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb044",
+    "src": "assets/unsorted/ldb044.jpg",
+    "title": "Portrait 38",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb111",
+    "src": "assets/unsorted/ldb111.jpg",
+    "title": "Portrait 39",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb112",
+    "src": "assets/unsorted/ldb112.jpg",
+    "title": "Portrait 40",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 72,
+      "y": 40
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb114",
+    "src": "assets/unsorted/ldb114.jpg",
+    "title": "Portrait 41",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb121",
+    "src": "assets/unsorted/ldb121.jpg",
+    "title": "Portrait 42",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb123",
+    "src": "assets/unsorted/ldb123.jpg",
+    "title": "Portrait 43",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb128",
+    "src": "assets/unsorted/ldb128.jpg",
+    "title": "Portrait 44",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb133",
+    "src": "assets/unsorted/ldb133.jpg",
+    "title": "Portrait 45",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb137",
+    "src": "assets/unsorted/ldb137.jpg",
+    "title": "Portrait 46",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb222",
+    "src": "assets/unsorted/ldb222.jpg",
+    "title": "Portrait 47",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb311",
+    "src": "assets/unsorted/ldb311.jpg",
+    "title": "Portrait 48",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb323",
+    "src": "assets/unsorted/ldb323.jpg",
+    "title": "Portrait 49",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb341",
+    "src": "assets/unsorted/ldb341.jpg",
+    "title": "Portrait 50",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb412",
+    "src": "assets/unsorted/ldb412.jpg",
+    "title": "Portrait 51",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb432",
+    "src": "assets/unsorted/ldb432.jpg",
+    "title": "Portrait 52",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb434",
+    "src": "assets/unsorted/ldb434.jpg",
+    "title": "Portrait 53",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb546",
+    "src": "assets/unsorted/ldb546.jpg",
+    "title": "Portrait 54",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb562",
+    "src": "assets/unsorted/ldb562.jpg",
+    "title": "Portrait 55",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb567",
+    "src": "assets/unsorted/ldb567.png",
+    "title": "Portrait 56",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb579",
+    "src": "assets/unsorted/ldb579.jpg",
+    "title": "Portrait 57",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb622",
+    "src": "assets/unsorted/ldb622.jpg",
+    "title": "Portrait 58",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb653",
+    "src": "assets/unsorted/ldb653.jpg",
+    "title": "Portrait 59",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb667",
+    "src": "assets/unsorted/ldb667.jpg",
+    "title": "Portrait 60",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb668",
+    "src": "assets/unsorted/ldb668.jpg",
+    "title": "Portrait 61",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb672",
+    "src": "assets/unsorted/ldb672.jpg",
+    "title": "Portrait 62",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb721",
+    "src": "assets/unsorted/ldb721.jpg",
+    "title": "Portrait 63",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb768",
+    "src": "assets/unsorted/ldb768.jpg",
+    "title": "Portrait 64",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb868",
+    "src": "assets/unsorted/ldb868.jpg",
+    "title": "Portrait 65",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb876",
+    "src": "assets/unsorted/ldb876.jpg",
+    "title": "Portrait 66",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  },
+  {
+    "id": "trans-woman-ldb999",
+    "src": "assets/unsorted/ldb999.jpg",
+    "title": "Portrait 67",
+    "alt": "Portrait photo",
+    "category": "trans-woman",
+    "focus": {
+      "x": 50,
+      "y": 38
+    },
+    "labels": {
+      "woman_trans": "trans"
+    }
+  }
+]
