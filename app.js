@@ -333,7 +333,6 @@ function renderCard() {
   el("#card-image").src = card.src;
   el("#card-image").alt = "Portrait photo";
   el("#card-image").style.objectPosition = getCardFocus(card);
-  el("#card-caption").textContent = card.title || `Portrait ${state.index + 1}`;
   el("#card-number").textContent = state.index + 1;
   el("#card-total").textContent = state.quizLength;
   el("#progress-bar").style.width = `${((state.index + 1) / state.quizLength) * 100}%`;
@@ -687,12 +686,11 @@ function renderReview() {
     const userLabel = MODES[state.mode].choices.find(c => c.id === answer.choice)?.label || "?";
     return `
       <li>
-        <button class="review-item ${answer.correct ? 'correct' : 'incorrect'}" type="button" data-index="${i}" aria-label="Review ${card.title || `portrait ${i + 1}`}: ${answer.correct ? 'correct' : 'incorrect'}">
+        <button class="review-item ${answer.correct ? 'correct' : 'incorrect'}" type="button" data-index="${i}" aria-label="Review answer ${i + 1}: ${answer.correct ? 'correct' : 'incorrect'}">
           <img class="review-thumb" src="${card.src}" alt="" style="object-position: ${getCardFocus(card)}" />
           <div class="review-info">
             <div class="review-row">
               <span class="review-result ${answer.correct ? 'correct' : 'incorrect'}">${answer.correct ? '✓' : '✗'}</span>
-              <span class="review-title">${card.title || `Portrait ${i + 1}`}</span>
             </div>
             <div class="review-row review-labels">
               <span class="label-pair"><span class="label-tag user">${userLabel}</span> <span class="arrow">→</span> <span class="label-tag correct-label">${correctLabel}</span></span>
@@ -724,7 +722,6 @@ function openReviewDetail(index) {
   el("#detail-image").src = card.src;
   el("#detail-image").alt = card.alt || "Portrait";
   el("#detail-image").style.objectPosition = getCardFocus(card);
-  el("#detail-card-title").textContent = card.title || `Portrait ${index + 1}`;
   el("#detail-result").textContent = answer.correct ? "Correct" : "Incorrect";
   el("#detail-result").className = `detail-result ${answer.correct ? 'correct' : 'incorrect'}`;
   el("#detail-user-choice").textContent = `You chose: ${userLabel}`;
