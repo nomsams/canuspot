@@ -111,6 +111,8 @@ The two quiz themes use a brighter pentatonic tuning, interlocking offbeat pluck
 
 All five themes share G as their tonal center. The calm scenes use a suspended G pentatonic scale while battle uses the closely related G-major pentatonic scale, preserving common notes across the 1.6-second scene crossfade. Active gain automation is held at its current level during a transition so rapid navigation does not introduce volume jumps.
 
+Percussion uses short attack ramps and a filtered submix with dedicated headroom. This prevents abrupt noise-wave starts and overlapping crossfades from producing crackling or clipped hi-hat transients on phone speakers.
+
 ## GitHub Pages
 
 The production site is entirely static and runs at `https://nomsams.github.io/canuspot/`:

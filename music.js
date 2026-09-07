@@ -122,12 +122,12 @@
     compressor.threshold.value = -24;
     compressor.knee.value = 18;
     compressor.ratio.value = 4;
-    compressor.attack.value = 0.02;
-    compressor.release.value = 0.35;
+    compressor.attack.value = 0.008;
+    compressor.release.value = 0.24;
     compressor.connect(context.destination);
 
     musicBus = context.createGain();
-    musicBus.gain.value = 0.065;
+    musicBus.gain.value = 0.058;
     musicBus.connect(compressor);
     effectsBus = context.createGain();
     effectsBus.gain.value = 0.34;
@@ -205,13 +205,15 @@
     const envelope = context.createGain();
     source.buffer = noiseBuffer;
     filter.type = "highpass";
-    filter.frequency.value = 5200;
-    envelope.gain.setValueAtTime(Math.max(0.0001, velocity), start);
-    envelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.055);
+    filter.frequency.value = 4400;
+    filter.Q.value = 0.35;
+    envelope.gain.setValueAtTime(0.0001, start);
+    envelope.gain.linearRampToValueAtTime(Math.max(0.0002, velocity), start + 0.008);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.075);
     source.connect(filter).connect(envelope);
     connectWithPan(envelope, pan, destination);
     source.start(start);
-    source.stop(start + 0.07);
+    source.stop(start + 0.09);
   }
 
   function scheduleWoodClick(start, velocity, destination) {
@@ -220,17 +222,30 @@
     oscillator.type = "sine";
     oscillator.frequency.setValueAtTime(860, start);
     oscillator.frequency.exponentialRampToValueAtTime(420, start + 0.045);
-    envelope.gain.setValueAtTime(Math.max(0.0001, velocity), start);
-    envelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.06);
+    envelope.gain.setValueAtTime(0.0001, start);
+    envelope.gain.linearRampToValueAtTime(Math.max(0.0002, velocity), start + 0.004);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.065);
     oscillator.connect(envelope).connect(destination);
     oscillator.start(start);
-    oscillator.stop(start + 0.07);
+    oscillator.stop(start + 0.08);
+  }
+
+  function createPercussionBus(destination) {
+    const softener = context.createBiquadFilter();
+    const headroom = context.createGain();
+    softener.type = "lowpass";
+    softener.frequency.value = 8600;
+    softener.Q.value = 0.25;
+    headroom.gain.value = 0.58;
+    softener.connect(headroom).connect(destination);
+    return softener;
   }
 
   function scheduleTuneCycle(tune, start, destination) {
     const beat = 60 / tune.bpm;
     const leadStep = beat / 2;
     const tuneScale = tune.scale || SCALE;
+    const percussionBus = createPercussionBus(destination);
     tune.lead.forEach((degree, index) => {
       if (degree === null) return;
       const noteStart = start + index * leadStep;
@@ -288,9 +303,9 @@
 
     for (let beatIndex = 0; beatIndex < 32; beatIndex += 1) {
       const beatStart = start + beatIndex * beat;
-      scheduleShaker(beatStart + beat * 0.5, tune.lively ? 0.028 : 0.018, destination, beatIndex % 2 ? 0.18 : -0.18);
+      scheduleShaker(beatStart + beat * 0.5, tune.lively ? 0.024 : 0.017, percussionBus, beatIndex % 2 ? 0.18 : -0.18);
       if (beatIndex % 4 === 1 || (tune.lively && beatIndex % 4 === 3)) {
-        scheduleWoodClick(beatStart, tune.lively ? 0.035 : 0.024, destination);
+        scheduleWoodClick(beatStart, tune.lively ? 0.03 : 0.022, percussionBus);
       }
       if (beatIndex % 8 === 0) {
         scheduleTone(scaleNote(tune.root - 12, tune.bass[beatIndex / 4] ?? 0, tuneScale), beatStart, beat * 2.6, 0.06, "bell", destination, 0.2);
