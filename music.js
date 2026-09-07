@@ -6,20 +6,20 @@
   const SCALE = [0, 2, 5, 7, 9];
   const BRIGHT_SCALE = [0, 2, 4, 7, 9];
   const PHRASES = {
-    lanternA: [0, 2, 4, 2, 3, 2, 0, null, 2, 4, 5, 4, 2, 0, -1, null],
-    lanternB: [0, 2, 4, 5, 4, 2, 3, 2, 0, -1, 0, 2, 0, null, null, null],
-    lanternC: [2, 3, 5, 4, 3, 2, 0, 2, 4, 3, 2, 0, -1, 0, 2, null],
-    bambooA: [0, null, 2, 3, 4, 3, 2, null, 5, 4, 3, 2, 0, 2, 3, null],
-    bambooB: [4, 5, 7, 5, 4, 3, 2, 0, 2, 3, 4, 2, 0, -1, 0, null],
-    bambooC: [0, 2, 3, 4, 3, 2, 0, -1, 0, 2, 4, 3, 2, null, 0, null],
-    silkA: [0, 2, 3, 4, 5, 4, 3, 2, 4, 5, 7, 5, 4, 2, 3, null],
-    silkB: [2, 4, 5, 4, 2, 3, 4, 2, 0, 2, 3, 0, -1, 0, 2, null],
-    silkC: [5, 4, 3, 2, 4, 3, 2, 0, 2, 4, 3, 5, 4, 2, 0, null],
-    templeA: [0, 3, 2, 4, 3, 5, 4, 2, 0, 2, 4, 5, 4, 3, 2, null],
-    templeB: [2, 5, 4, 7, 5, 4, 3, 2, 4, 3, 2, 0, -1, 0, 2, null],
-    templeC: [0, 2, 4, 3, 5, 4, 2, 3, 0, -1, 0, 3, 2, 0, -1, null],
-    goldA: [0, 2, 4, 5, 7, 5, 4, 2, 3, 4, 5, 4, 2, 0, 2, null],
-    goldB: [4, 5, 7, 9, 7, 5, 4, 3, 2, 4, 5, 4, 2, 0, -1, null],
+    lanternA: [0, 2, 3, 4, 3, 2, 0, null, 0, 2, 3, 5, 4, 3, 2, null],
+    lanternB: [2, 3, 4, 5, 4, 3, 2, 0, 2, 4, 3, 2, 0, -1, 0, null],
+    lanternC: [4, 5, 7, 5, 4, 3, 2, null, 3, 4, 5, 4, 2, 3, 0, null],
+    bambooA: [0, null, 2, 3, 5, 4, 3, null, 2, 3, 4, 2, 0, 2, 3, null],
+    bambooB: [4, 5, 7, 5, 4, 3, 2, 0, 2, 4, 5, 4, 2, 0, -1, null],
+    bambooC: [0, 2, 3, 4, 5, 4, 2, null, 3, 2, 0, 2, 3, 2, 0, null],
+    silkA: [0, 2, 3, 5, 3, 2, 1, 2, 0, 2, 3, 4, 5, 4, 3, null],
+    silkB: [2, 3, 5, 7, 5, 4, 3, 2, 4, 5, 4, 3, 2, 1, 0, null],
+    silkC: [5, 4, 3, 2, 3, 4, 5, null, 7, 5, 4, 3, 2, 3, 0, null],
+    templeA: [0, 3, 2, 4, 3, 5, 4, 2, 0, 2, 4, 5, 7, 5, 4, null],
+    templeB: [2, 5, 4, 7, 5, 4, 3, 2, 4, 3, 2, 0, 2, 3, 5, null],
+    templeC: [5, 7, 5, 4, 3, 4, 5, 3, 2, 4, 3, 2, 0, 2, 0, null],
+    goldA: [0, 2, 3, 5, 7, 5, 4, 3, 2, 4, 5, 4, 2, 0, 2, null],
+    goldB: [4, 5, 7, 9, 7, 5, 4, 3, 2, 3, 5, 4, 2, 0, -1, null],
     goldC: [0, 3, 5, 4, 2, 4, 3, 2, 0, 2, 4, 5, 4, 2, 0, null],
   };
 
@@ -51,9 +51,8 @@
       voice: "pluck",
       lead: melody("silkA", "silkB", "silkC", "silkB"),
       bass: [0, 2, 0, -1, 0, 3, 2, 0],
-      bassPulse: [0, 0, 2, 2, 0, -1, 0, 2, 3, 2, 0, -1, 0, 2, 4, 2],
-      arpeggio: [0, 2, 4, 7, 4, 2, 3, 5, 7, 5, 3, 2, 0, 2, 4, 5],
-      arpeggioOctave: 0,
+      arpeggio: [0, 2, 3, 5, 3, 2, 1, 3, 0, 2, 4, 5, 4, 2, 1, 2],
+      arpeggioOctave: 12,
       ornaments: [6, 14],
       lively: true,
     },
@@ -65,9 +64,8 @@
       voice: "reed",
       lead: melody("templeA", "templeB", "templeC", "templeB"),
       bass: [0, 0, 2, -1, 0, 3, 2, 0],
-      bassPulse: [0, 2, 0, 2, 3, 2, 0, -1, 0, 2, 4, 3, 2, 0, -1, 2],
-      arpeggio: [0, 2, 4, 5, 7, 5, 4, 2, 3, 5, 7, 9, 7, 5, 4, 2],
-      arpeggioOctave: 0,
+      arpeggio: [0, 3, 2, 5, 4, 2, 3, 5, 2, 4, 5, 7, 5, 4, 3, 2],
+      arpeggioOctave: 12,
       ornaments: [4, 8, 12],
       lively: true,
     },
@@ -75,6 +73,7 @@
       title: "Golden Score",
       bpm: 78,
       root: G_TONIC,
+      scale: BRIGHT_SCALE,
       voice: "bell",
       lead: melody("goldA", "goldB", "goldC", "goldA"),
       bass: [0, 2, 3, 0, 4, 3, 2, 0],
@@ -87,14 +86,13 @@
     battle: ["silkRoadSkirmish", "templeSteps"],
     results: ["goldenScore"],
   };
-  const TUNE_CYCLES_PER_PASS = 2;
-  const LOOP_CROSSFADE_SECONDS = 0.85;
-  const SCENE_CROSSFADE_SECONDS = 1.6;
+  const TUNE_CYCLES_PER_PASS = 1;
+  const LOOP_CROSSFADE_SECONDS = 0.48;
+  const SCENE_CROSSFADE_SECONDS = 0.9;
 
   let context = null;
   let musicBus = null;
   let effectsBus = null;
-  let noiseBuffer = null;
   let activeTrack = null;
   let loopTimer = null;
   let scene = null;
@@ -127,96 +125,44 @@
     compressor.connect(context.destination);
 
     musicBus = context.createGain();
-    musicBus.gain.value = 0.058;
+    musicBus.gain.value = 0.068;
     musicBus.connect(compressor);
     effectsBus = context.createGain();
     effectsBus.gain.value = 0.34;
     effectsBus.connect(compressor);
 
-    noiseBuffer = context.createBuffer(1, context.sampleRate, context.sampleRate);
-    const channel = noiseBuffer.getChannelData(0);
-    for (let index = 0; index < channel.length; index += 1) {
-      channel[index] = Math.random() * 2 - 1;
-    }
     return context;
   }
 
-  function connectWithPan(source, pan, destination) {
-    if (!context.createStereoPanner) {
-      source.connect(destination);
-      return;
-    }
-    const panner = context.createStereoPanner();
-    panner.pan.value = pan;
-    source.connect(panner).connect(destination);
-  }
-
-  function scheduleTone(note, start, duration, velocity, voice, destination, pan = 0) {
+  function scheduleTone(note, start, duration, velocity, voice, destination, sources, glideFrom = null) {
     const frequency = midiToFrequency(note);
     const envelope = context.createGain();
     const filter = context.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = voice === "bass" ? 620 : voice === "reed" ? 2100 : 3200;
-    filter.Q.value = voice === "reed" ? 3.2 : 0.8;
+    filter.frequency.value = voice === "bass" ? 760 : voice === "reed" ? 1900 : voice === "bell" ? 3500 : 2800;
+    filter.Q.value = voice === "reed" ? 2.1 : 0.7;
     filter.connect(envelope);
-    connectWithPan(envelope, pan, destination);
+    envelope.connect(destination);
 
-    const attack = voice === "reed" ? 0.055 : 0.012;
+    const attack = voice === "reed" ? 0.035 : 0.012;
     const releaseAt = start + Math.max(attack + 0.04, duration);
     envelope.gain.setValueAtTime(0.0001, start);
     envelope.gain.exponentialRampToValueAtTime(Math.max(0.0002, velocity), start + attack);
     envelope.gain.exponentialRampToValueAtTime(0.0001, releaseAt);
 
     const oscillator = context.createOscillator();
-    oscillator.type = voice === "bass" ? "triangle" : voice === "reed" ? "square" : "sine";
-    oscillator.frequency.setValueAtTime(frequency, start);
+    oscillator.type = voice === "reed" ? "square" : voice === "bell" ? "sine" : "triangle";
+    oscillator.frequency.setValueAtTime(glideFrom === null ? frequency : midiToFrequency(glideFrom), start);
+    if (glideFrom !== null) {
+      oscillator.frequency.exponentialRampToValueAtTime(frequency, start + Math.min(0.065, duration * 0.25));
+    }
     oscillator.connect(filter);
-
-    let overtone = null;
-    if (voice === "pluck" || voice === "bell") {
-      overtone = context.createOscillator();
-      const overtoneGain = context.createGain();
-      overtone.type = "sine";
-      overtone.frequency.setValueAtTime(frequency * (voice === "bell" ? 2.01 : 2), start);
-      overtoneGain.gain.value = voice === "bell" ? 0.26 : 0.12;
-      overtone.connect(overtoneGain).connect(filter);
-      overtone.start(start);
-      overtone.stop(releaseAt + 0.08);
-    }
-
-    let vibrato = null;
-    if (voice === "reed") {
-      vibrato = context.createOscillator();
-      const vibratoDepth = context.createGain();
-      vibrato.frequency.value = 5.1;
-      vibratoDepth.gain.value = 1.25;
-      vibrato.connect(vibratoDepth).connect(oscillator.frequency);
-      vibrato.start(start);
-      vibrato.stop(releaseAt + 0.08);
-    }
-
+    sources.push(oscillator);
     oscillator.start(start);
     oscillator.stop(releaseAt + 0.08);
   }
 
-  function scheduleShaker(start, velocity, destination, pan = 0) {
-    const source = context.createBufferSource();
-    const filter = context.createBiquadFilter();
-    const envelope = context.createGain();
-    source.buffer = noiseBuffer;
-    filter.type = "highpass";
-    filter.frequency.value = 4400;
-    filter.Q.value = 0.35;
-    envelope.gain.setValueAtTime(0.0001, start);
-    envelope.gain.linearRampToValueAtTime(Math.max(0.0002, velocity), start + 0.008);
-    envelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.075);
-    source.connect(filter).connect(envelope);
-    connectWithPan(envelope, pan, destination);
-    source.start(start);
-    source.stop(start + 0.09);
-  }
-
-  function scheduleWoodClick(start, velocity, destination) {
+  function scheduleWoodClick(start, velocity, destination, sources) {
     const oscillator = context.createOscillator();
     const envelope = context.createGain();
     oscillator.type = "sine";
@@ -226,6 +172,7 @@
     envelope.gain.linearRampToValueAtTime(Math.max(0.0002, velocity), start + 0.004);
     envelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.065);
     oscillator.connect(envelope).connect(destination);
+    sources.push(oscillator);
     oscillator.start(start);
     oscillator.stop(start + 0.08);
   }
@@ -236,88 +183,72 @@
     softener.type = "lowpass";
     softener.frequency.value = 8600;
     softener.Q.value = 0.25;
-    headroom.gain.value = 0.58;
+    headroom.gain.value = 0.5;
     softener.connect(headroom).connect(destination);
     return softener;
   }
 
-  function scheduleTuneCycle(tune, start, destination) {
+  function scheduleTuneCycle(tune, start, track) {
     const beat = 60 / tune.bpm;
     const leadStep = beat / 2;
     const tuneScale = tune.scale || SCALE;
+    const destination = track.gain;
     const percussionBus = createPercussionBus(destination);
     tune.lead.forEach((degree, index) => {
       if (degree === null) return;
       const noteStart = start + index * leadStep;
       const ornament = tune.ornaments.includes(index % 16);
-      if (ornament) {
-        scheduleTone(scaleNote(tune.root, degree - 1, tuneScale), noteStart, leadStep * 0.18, 0.09, "pluck", destination, -0.12);
-      }
       scheduleTone(
         scaleNote(tune.root, degree, tuneScale),
-        noteStart + (ornament ? leadStep * 0.16 : 0),
-        leadStep * (tune.voice === "bell" ? 1.5 : 0.78),
-        tune.voice === "bell" ? 0.14 : 0.11,
+        noteStart,
+        leadStep * (tune.voice === "bell" ? 1.15 : 0.72),
+        tune.voice === "bell" ? 0.13 : 0.115,
         tune.voice,
         destination,
-        0.08,
+        track.sources,
+        ornament ? scaleNote(tune.root, degree - 1, tuneScale) : null,
       );
     });
 
     tune.bass.forEach((degree, index) => {
-      const velocity = tune.lively ? 0.09 : 0.12;
-      scheduleTone(scaleNote(tune.root - 24, degree, tuneScale), start + index * beat * 4, beat * 3.4, velocity, "bass", destination, -0.08);
+      const velocity = tune.lively ? 0.052 : 0.062;
+      scheduleTone(scaleNote(tune.root - 12, degree, tuneScale), start + index * beat * 4, beat * 1.45, velocity, "bass", destination, track.sources);
     });
 
-    if (tune.bassPulse) {
-      tune.bassPulse.forEach((degree, index) => {
-        const velocity = index % 4 === 0 ? 0.105 : 0.078;
-        scheduleTone(
-          scaleNote(tune.root - 24, degree, tuneScale),
-          start + index * beat * 2,
-          beat * 1.35,
-          velocity,
-          "bass",
-          destination,
-          -0.18,
-        );
-      });
-    }
-
     if (tune.arpeggio) {
-      const arpeggioStep = beat / 2;
-      for (let step = 0; step < 64; step += 1) {
+      const arpeggioStep = beat;
+      for (let step = 0; step < 32; step += 1) {
         const degree = tune.arpeggio[step % tune.arpeggio.length];
-        const accent = step % 8 === 0 ? 0.052 : 0.036;
+        const accent = step % 8 === 0 ? 0.044 : 0.03;
         scheduleTone(
           scaleNote(tune.root + (tune.arpeggioOctave ?? 12), degree, tuneScale),
-          start + step * arpeggioStep + beat * 0.25,
-          beat * 0.21,
+          start + step * arpeggioStep + beat * 0.5,
+          beat * 0.28,
           accent,
           "pluck",
           destination,
-          step % 2 === 0 ? -0.22 : 0.22,
+          track.sources,
         );
       }
     }
 
     for (let beatIndex = 0; beatIndex < 32; beatIndex += 1) {
       const beatStart = start + beatIndex * beat;
-      scheduleShaker(beatStart + beat * 0.5, tune.lively ? 0.024 : 0.017, percussionBus, beatIndex % 2 ? 0.18 : -0.18);
-      if (beatIndex % 4 === 1 || (tune.lively && beatIndex % 4 === 3)) {
-        scheduleWoodClick(beatStart, tune.lively ? 0.03 : 0.022, percussionBus);
+      const clickInterval = tune.lively ? 2 : 4;
+      if (beatIndex % clickInterval === clickInterval - 1) {
+        scheduleWoodClick(beatStart + beat * 0.5, tune.lively ? 0.027 : 0.018, percussionBus, track.sources);
       }
       if (beatIndex % 8 === 0) {
-        scheduleTone(scaleNote(tune.root - 12, tune.bass[beatIndex / 4] ?? 0, tuneScale), beatStart, beat * 2.6, 0.06, "bell", destination, 0.2);
+        scheduleTone(scaleNote(tune.root + 12, tune.bass[beatIndex / 4] ?? 0, tuneScale), beatStart, beat * 0.65, 0.038, "bell", destination, track.sources);
       }
     }
     return beat * 32;
   }
 
-  function scheduleTune(tune, start, destination) {
+  function scheduleTune(tune, start, track) {
     const cycleDuration = (60 / tune.bpm) * 32;
     for (let cycle = 0; cycle < TUNE_CYCLES_PER_PASS; cycle += 1) {
-      scheduleTuneCycle(tune, start + cycle * cycleDuration, destination);
+      scheduleTuneCycle(tune, start + cycle * cycleDuration, track);
     }
     return cycleDuration * TUNE_CYCLES_PER_PASS;
   }
@@ -343,7 +274,7 @@
     loopTimer = null;
     if (!context || !activeTrack) return;
     const now = context.currentTime;
-    const gain = activeTrack.gain;
+    const gain = activeTrack.gain.gain;
     if (typeof gain.cancelAndHoldAtTime === "function") {
       gain.cancelAndHoldAtTime(now);
     } else {
@@ -353,7 +284,17 @@
     }
     gain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
     const retiringTrack = activeTrack;
-    window.setTimeout(() => retiringTrack.disconnect(), (fadeSeconds + 0.2) * 1000);
+    const stopAt = now + fadeSeconds + 0.04;
+    retiringTrack.sources.forEach((source) => {
+      try { source.stop(stopAt); } catch (_) { /* The source may have already ended. */ }
+    });
+    window.setTimeout(() => {
+      retiringTrack.sources.forEach((source) => {
+        try { source.disconnect(); } catch (_) { /* The source may already be detached. */ }
+      });
+      retiringTrack.sources.length = 0;
+      retiringTrack.gain.disconnect();
+    }, (fadeSeconds + 0.12) * 1000);
     activeTrack = null;
     activeScene = null;
     activeTuneKey = null;
@@ -366,10 +307,10 @@
     stopTrack(fadeSeconds);
 
     const start = context.currentTime + 0.06;
-    const track = context.createGain();
-    track.gain.setValueAtTime(0.0001, context.currentTime);
-    track.gain.exponentialRampToValueAtTime(1, start + fadeSeconds);
-    track.connect(musicBus);
+    const track = { gain: context.createGain(), sources: [] };
+    track.gain.gain.setValueAtTime(0.0001, context.currentTime);
+    track.gain.gain.exponentialRampToValueAtTime(1, start + fadeSeconds);
+    track.gain.connect(musicBus);
     activeTrack = track;
     activeScene = scene;
     activeTuneKey = scheduledTuneKey;
@@ -388,7 +329,7 @@
     if (!enabled || !AudioContextClass) return false;
     createContext();
     if (context.state === "suspended") await context.resume();
-    if (!activeTrack || activeScene !== scene || activeTuneKey !== selectedTuneKey) playSelectedTune(0.75);
+    if (!activeTrack || activeScene !== scene || activeTuneKey !== selectedTuneKey) playSelectedTune(0.55);
     return context.state === "running";
   }
 
@@ -421,8 +362,9 @@
     createContext();
     if (context.state === "suspended") context.resume().catch(() => {});
     const now = context.currentTime + 0.01;
-    scheduleTone(success ? 72 : 55, now, 0.12, 0.1, success ? "bell" : "bass", effectsBus);
-    if (success) scheduleTone(79, now + 0.065, 0.11, 0.07, "bell", effectsBus, 0.1);
+    const effectSources = [];
+    scheduleTone(success ? 72 : 55, now, 0.12, 0.1, success ? "bell" : "bass", effectsBus, effectSources);
+    if (success) scheduleTone(79, now + 0.065, 0.11, 0.07, "bell", effectsBus, effectSources);
   }
 
   function getStatus() {
@@ -435,6 +377,7 @@
       title: currentTitle,
       bpm: selectedTuneKey ? TUNES[selectedTuneKey].bpm : null,
       contextState: context?.state || "not-started",
+      scheduledSourceCount: activeTrack?.sources.length || 0,
       tuneCount: Object.keys(TUNES).length,
     };
   }

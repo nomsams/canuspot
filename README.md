@@ -105,13 +105,13 @@ Toggle modes using the header button. A mode without at least one image for each
 - Quiz screen: **Silk Road Skirmish** or **Temple Steps**, rotating on the next round
 - Results and review screens: **Golden Score** loops
 
-Each scene keeps its selected tune and loops it indefinitely instead of switching tracks mid-screen. Tunes are scheduled in longer two-cycle passes, and only rotate when the visitor later returns to that scene. Their BPM is exposed to the interface so the intro word reel, card timing, score reveals, meter, monkey, and music indicator move on beat. Music is enabled by default, begins after the visitor's first interaction to respect browser autoplay rules, and crossfades when the screen changes. The header music button mutes both the score and answer sounds; that preference is saved locally.
+Each scene keeps its selected tune and loops it indefinitely instead of switching tracks mid-screen. Tunes are scheduled one 32-beat cycle at a time, and only rotate when the visitor later returns to that scene. Their BPM is exposed to the interface so the intro word reel, card timing, score reveals, meter, monkey, and music indicator move on beat. Music is enabled by default, begins after the visitor's first interaction to respect browser autoplay rules, and crossfades when the screen changes. The header music button mutes both the score and answer sounds; that preference is saved locally.
 
-The two quiz themes use a brighter pentatonic tuning, interlocking offbeat plucked arpeggios, and a separate two-beat bass pulse to give the battle phase more lift and forward motion without overpowering the portraits.
+The two quiz themes use a brighter pentatonic tuning, original singable retro-fantasy hooks, offbeat plucked arpeggios, and short octave bass anchors. The result is happier and more game-like while the battle phase keeps its lift and forward motion without overpowering the portraits.
 
-All five themes share G as their tonal center. The calm scenes use a suspended G pentatonic scale while battle uses the closely related G-major pentatonic scale, preserving common notes across the 1.6-second scene crossfade. Active gain automation is held at its current level during a transition so rapid navigation does not introduce volume jumps.
+All five themes share G as their tonal center. The calm scenes use a suspended G pentatonic scale while battle and results use the closely related G-major pentatonic scale, preserving common notes across the smooth scene crossfade. Active gain automation is held at its current level during a transition so rapid navigation does not introduce volume jumps.
 
-Percussion uses short attack ramps and a filtered submix with dedicated headroom. This prevents abrupt noise-wave starts and overlapping crossfades from producing crackling or clipped hi-hat transients on phone speakers.
+The mobile-friendly audio graph uses one oscillator per note, a single scheduled cycle, lightweight tonal wood clicks, and one sparse bass line. It removes the noise-based hi-hat and second bass pulse, uses much shorter overlap during crossfades, and explicitly stops queued sources when a scene ends. This sharply reduces startup work and prevents old synth nodes from lingering on slower phones.
 
 ## GitHub Pages
 
