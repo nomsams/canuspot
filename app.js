@@ -406,9 +406,10 @@ function getCardFocus(card) {
   return `${clamp(card.focus?.x, 50)}% 0%`;
 }
 
-function setPortraitPresentation(container, image, backdrop, card, alt) {
+function setPortraitPresentation(container, image, backdrop, card, alt, onReady) {
   const focus = getCardFocus(card);
   const portraitId = card.id;
+  let ready = false;
   container.classList.remove("is-wide-image");
   image.dataset.portraitId = portraitId;
   image.alt = alt;
@@ -422,9 +423,16 @@ function setPortraitPresentation(container, image, backdrop, card, alt) {
     container.classList.toggle("is-wide-image", isWide);
     image.style.objectPosition = isWide ? "50% 50%" : focus;
   };
-  image.onload = updateFit;
+  const finishLoading = () => {
+    if (ready || image.dataset.portraitId !== portraitId) return;
+    ready = true;
+    updateFit();
+    onReady?.();
+  };
+  image.onload = finishLoading;
+  image.onerror = finishLoading;
   image.src = card.src;
-  if (image.complete) requestAnimationFrame(updateFit);
+  if (image.complete) requestAnimationFrame(finishLoading);
 }
 
 function buildBalancedDeck(cards, mode, limit, imageMemory = {}) {
@@ -610,9 +618,26 @@ function renderCard() {
   const active = el("#active-card");
   const behind = el(".card-behind");
   quizPinchZoom?.reset();
-  active.className = "swipe-card card-active";
+  // The back card already has the upcoming portrait cached. Keep that portrait
+  // visible while the active <img> switches so the dismissed image cannot flash back.
+  behind.style.backgroundImage = `url(${card.src})`;
+  behind.style.backgroundSize = "cover";
+  behind.style.backgroundPosition = getCardFocus(card);
+  state.locked = true;
+  active.className = "swipe-card card-active is-loading";
   active.style.cssText = "";
-  setPortraitPresentation(active, el("#card-image"), el("#card-backdrop"), card, "Portrait photo");
+  setPortraitPresentation(active, el("#card-image"), el("#card-backdrop"), card, "Portrait photo", () => {
+    if (state.cards[state.index]?.id !== card.id) return;
+    active.classList.remove("is-loading");
+    state.locked = false;
+    const nextCard = state.cards[state.index + 1];
+    requestAnimationFrame(() => {
+      if (state.cards[state.index]?.id !== card.id) return;
+      behind.style.backgroundImage = nextCard ? `url(${nextCard.src})` : "";
+      behind.style.backgroundSize = "cover";
+      behind.style.backgroundPosition = nextCard ? getCardFocus(nextCard) : "";
+    });
+  });
   el("#card-number").textContent = state.index + 1;
   el("#card-total").textContent = state.quizLength;
   el("#progress-bar").style.width = `${((state.index + 1) / state.quizLength) * 100}%`;
@@ -622,15 +647,6 @@ function renderCard() {
   el("[data-action='undo']").disabled = state.index === 0;
   active.classList.remove("correct", "incorrect");
   void rememberCardView(card);
-
-  if (state.index < state.cards.length - 1) {
-    const nextCard = state.cards[state.index + 1];
-    behind.style.backgroundImage = `url(${nextCard.src})`;
-    behind.style.backgroundSize = "cover";
-    behind.style.backgroundPosition = getCardFocus(nextCard);
-  } else {
-    behind.style.backgroundImage = "";
-  }
 }
 
 function choose(choice, direction) {
@@ -660,7 +676,7 @@ function choose(choice, direction) {
   window.setTimeout(() => {
     state.index += 1;
     if (state.index >= state.quizLength) finishQuiz();
-    else { renderCard(); state.locked = false; }
+    else renderCard();
   }, cardAdvanceDelayMs);
 }
 

@@ -97,6 +97,7 @@ h1, h2 { font-family: Manrope, sans-serif; letter-spacing: -.055em; }
 .deck { width: min(100%, 52dvh); height: clamp(388px, calc(52dvh + 68px), 588px); min-height: 0; position: relative; margin: 8px auto 0; perspective: 1000px; }
 .swipe-card { position: absolute; inset: 0; border-radius: 27px; overflow: hidden; background: #26292f; box-shadow: 0 25px 65px rgba(0,0,0,.45); user-select: none; touch-action: pan-y; transform-origin: 50% 100%; }
 .card-active { cursor: grab; will-change: transform; }
+.card-active.is-loading { visibility: hidden; }
 .card-active.is-dragging { cursor: grabbing; transition: none; }
 .card-active.is-leaving { transition: transform var(--music-beat) cubic-bezier(.2,.7,.1,1), opacity var(--music-beat) ease; }
 .card-active.correct { box-shadow: 0 0 0 4px var(--green), 0 25px 65px rgba(0,0,0,.45); }
