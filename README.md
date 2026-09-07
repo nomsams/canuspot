@@ -2,7 +2,7 @@
 
 A dependency-free, mobile-first swipe quiz for GitHub Pages. It presents up to 10 balanced portrait cards, supports horizontal drag plus explicit choice buttons, calculates a score, assigns a humorous level, and shows a red–orange–green result meter.
 
-The quiz also includes answer undo, keyboard controls, answer review with swipe navigation, persistent per-mode personal stats, daily streaks, and a device-local leaderboard. The bundled demo has six valid cards per mode; rounds automatically grow to 10 when enough assets are available.
+The quiz also includes answer undo, keyboard controls, answer review with swipe navigation, persistent per-mode personal stats, daily streaks, a monkey benchmark, and a device-local leaderboard. Rounds use only supplied photo assets and automatically grow to 10 when enough assets are available.
 
 This implementation uses creator-labelled portrait categories (woman/trans-woman or man/trans-man). It is a perception quiz — not a claim about anyone's identity.
 
@@ -26,7 +26,7 @@ Drop `.jpg`, `.jpeg`, `.png`, `.webp`, or `.avif` files into `assets/unsorted/`,
 npm run assets
 ```
 
-The generator updates `assets/manifest.json` while preserving the original demo entries:
+The generator updates `assets/manifest.json` while preserving valid manually managed entries:
 
 - filenames beginning with `lady` are added as `woman`
 - filenames beginning with `ldb` are added as `trans-woman`
@@ -34,15 +34,27 @@ The generator updates `assets/manifest.json` while preserving the original demo 
 
 Names are matched case-insensitively, so adding more numbered files only requires rerunning the command. The file name becomes part of a stable internal ID but is not shown as the portrait title.
 
-Generated images default to a focal point of `50% 38%`—centered horizontally and slightly above center vertically. To adjust an outlier without editing generated data, add an entry to `assets/focus-overrides.json`:
+Generated images default to a top-safe focal point of `50% 0%`. This preserves the complete top edge even when a photo needs cover cropping. To adjust horizontal framing without editing generated data, add an entry to `assets/focus-overrides.json`:
 
 ```json
 {
-  "example.jpg": { "x": 65, "y": 35 }
+  "example.jpg": { "x": 65, "y": 0 }
 }
 ```
 
-Both values are percentages from the image's top-left corner. Rerun `npm run assets` after changing the overrides. Use `npm run check` to verify that the manifest is current.
+Both values are percentages from the image's top-left corner. Keep `y` at `0` to guarantee that the top edge remains visible. Rerun `npm run assets` after changing the overrides. Use `npm run check` to verify that the manifest is current.
+
+### Face-aware focal points
+
+The included Python 3 utility uses OpenCV YuNet to detect the primary face and generate a horizontal focal point for every imported image while pinning the vertical focus to the top edge:
+
+```powershell
+python -m pip install -r requirements-face-focus.txt
+python scripts/detect-face-focus.py --model path/to/face_detection_yunet_2026may.onnx
+npm run assets
+```
+
+Download the YuNet model from the official [OpenCV Zoo face detector](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet). Add `--preview face-preview.jpg` to produce a contact sheet for visual QA. Run the detector again after adding portraits, then review any unusual pose manually in `assets/focus-overrides.json`.
 
 ### Manual category folders
 
@@ -54,18 +66,18 @@ For fully manual manifests, the project supports **four category folders**:
 4. `assets/men/` — Portraits of cisgender men
 
 ### Image requirements
-- Format: WebP or AVIF recommended (SVG works for demo)
-- Any aspect ratio is supported; images render with a 4:5 cover crop around their focal point
-- Minimum 10 images per folder for good randomization (3 per folder in demo)
+- Format: WebP or AVIF recommended
+- Any aspect ratio is supported; the phone card uses a less aggressive, near-square cover crop around the detected face
+- Minimum 10 images per answer group for good randomization
 
 ### Manifest format
 Add each image to `assets/manifest.json` with:
 - `id` — stable, non-identifying identifier
 - `src` — path to image
-- `title` — display name
+- `title` — optional internal name; it is not displayed in the interface
 - `alt` — accessible description
 - `category` — one of: `woman`, `trans-woman`, `trans-man`, `man`
-- `focus` — optional crop focus such as `{ "x": 50, "y": 38 }`
+- `focus` — optional crop focus such as `{ "x": 50, "y": 0 }`
 - `labels` — object with the correct answer for each applicable mode:
   - `woman_trans`: `"woman"` or `"trans"`
   - `man_trans`: `"man"` or `"trans"`
@@ -80,10 +92,10 @@ Only use images you own or have explicit permission to publish. If real people a
 
 ## Quiz modes
 
-- **Woman / Trans** — Guess if the person is a cisgender woman or a trans woman (MTF)
-- **Man / Trans** — Guess if the person is a cisgender man or a trans man (FTM)
+- **Lady / Ladyboy** — Guess between the supplied `lady…` and `ldb…` image groups
+- **Man / Trans man** — Available when both matching manual image groups have content
 
-Toggle modes using the header button. A round only includes cards whose category and answer both belong to that mode, and the deck alternates between the two answer groups before shuffling so one label cannot dominate the quiz.
+Toggle modes using the header button. A mode without at least one image for each answer is hidden automatically. A round only includes cards whose category and answer both belong to that mode, and the deck alternates between the two answer groups before shuffling so one label cannot dominate the quiz.
 
 ## GitHub Pages
 
@@ -110,8 +122,6 @@ The current adapter stores the latest 100 attempts in the browser's `localStorag
 
 For Supabase, replace the adapter with calls to an Edge Function. Recommended tables: `images`, `quiz_attempts`, `image_answers`, using opaque UUIDs. Keep the service-role key server-side, enable RLS on every public table, allow clients to read only published image metadata, and insert attempts through a rate-limited Edge Function. If you have a legitimate reason to deduplicate by IP, hash it only inside the Edge Function with a rotating server secret (HMAC), retain it briefly, disclose it in the privacy notice, and never expose raw IPs or a public unsalted hash. A local random identifier is the more privacy-preserving default.
 
-The sample leaderboard rows in this prototype are visibly labelled `demo`; personal statistics never include them. Replace them with an aggregate-only endpoint (minimum cohort sizes recommended) before showing real community statistics.
-
 ## Files
 
 - `index.html` — accessible app structure
@@ -121,6 +131,8 @@ The sample leaderboard rows in this prototype are visibly labelled `demo`; perso
 - `assets/unsorted/` — quick-import source images named `lady…` or `ldb…`
 - `assets/focus-overrides.json` — optional per-file crop adjustments
 - `scripts/generate-manifest.mjs` — dependency-free asset manifest generator
+- `scripts/detect-face-focus.py` — optional OpenCV YuNet focal-point generator
+- `requirements-face-focus.txt` — maintainer-only Python dependencies for face detection
 - `assets/women/`, `assets/trans-woman-man/`, `assets/trans-man-woman/`, `assets/men/` — portrait images
 
 ## License

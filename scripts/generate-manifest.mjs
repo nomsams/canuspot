@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { access, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,7 +24,7 @@ function getFocus(filename, overrides) {
   const override = overrides[filename] || {};
   return {
     x: clamp(override.x, 50),
-    y: clamp(override.y, 38),
+    y: clamp(override.y, 0),
   };
 }
 
@@ -59,7 +59,15 @@ async function readJson(filePath, fallback) {
 
 const existingManifest = await readJson(manifestPath, []);
 const focusOverrides = await readJson(overridesPath, {});
-const preservedEntries = existingManifest.filter((entry) => !entry.src?.startsWith("assets/unsorted/"));
+const preservedEntries = [];
+for (const entry of existingManifest.filter((item) => !item.src?.startsWith("assets/unsorted/"))) {
+  try {
+    await access(path.resolve(projectRoot, entry.src));
+    preservedEntries.push(entry);
+  } catch {
+    console.warn(`Removed missing manifest asset: ${entry.src}`);
+  }
+}
 const usedIds = new Set(preservedEntries.map((entry) => entry.id));
 const filenames = (await readdir(sourceDirectory, { withFileTypes: true }))
   .filter((entry) => entry.isFile() && supportedExtensions.has(path.extname(entry.name).toLowerCase()))

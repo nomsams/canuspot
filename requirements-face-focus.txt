@@ -1,0 +1,2 @@
+opencv-python-headless>=5,<6
+Pillow>=10,<13

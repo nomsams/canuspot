@@ -19,9 +19,9 @@
           <span class="brand-mark">S</span><span>spot check</span>
         </button>
         <div style="display:flex;align-items:center;gap:8px;">
-          <button class="mode-toggle" type="button" data-action="toggle-mode" aria-label="Switch quiz mode" aria-pressed="false">
-            <span class="mode-icon" aria-hidden="true">♀/⚧</span>
-            <span class="mode-text">Woman / Trans</span>
+          <button class="mode-toggle" type="button" data-action="toggle-mode" aria-label="Switch quiz mode" aria-pressed="false" hidden>
+            <span class="mode-text">Lady / Ladyboy</span>
+            <span class="mode-switch" aria-hidden="true">↕</span>
           </button>
           <button class="sound-button" type="button" data-action="sound" aria-label="Toggle sound" aria-pressed="false">♪</button>
         </div>
@@ -36,7 +36,11 @@
             </div>
             <div class="intro-content">
               <p class="eyebrow" id="intro-meta">10 cards · ~1 minute</p>
-              <h1 id="intro-title">Can you really spot a <span class="word-reel" aria-label="target"><span id="reel-word">woman</span></span>?</h1>
+              <h1 id="intro-title" aria-label="Can you really spot a lady, ladyboy, or man?">
+                <span class="intro-title-line"><span class="title-can">Can</span> <span class="title-you">you</span> <span class="title-really">really</span></span>
+                <span class="intro-title-line"><span class="title-spot">spot</span> <span class="title-a">a</span></span>
+                <span class="intro-target-line"><span class="word-reel" aria-hidden="true"><span id="reel-word" class="tone-lady">lady</span></span><span class="intro-question-mark" aria-hidden="true">?</span></span>
+              </h1>
               <p class="intro-note"><em>Track your score and personal best.</em></p>
               <div class="intro-progress" id="intro-progress" hidden>
                 <span>Personal best <strong id="intro-best">—</strong></span>
@@ -70,7 +74,7 @@
             <button class="undo-button" type="button" data-action="undo" disabled aria-label="Undo the previous answer">↶ Undo</button>
           </div>
           <div class="choice-row" id="choice-row"></div>
-          <p class="edge-hint">Buttons are safest near your phone's back-gesture edge.</p>
+          <p class="edge-hint">Swipe the photo, or tap an answer.</p>
           <p class="sr-only" id="answer-feedback" role="status" aria-live="polite"></p>
         </section>
 
@@ -104,17 +108,27 @@
             </div>
           </section>
 
+          <section class="monkey-benchmark" id="monkey-benchmark" aria-labelledby="monkey-title">
+            <span class="monkey-avatar" aria-hidden="true"><span class="monkey-face">🐵</span></span>
+            <div class="monkey-copy">
+              <p class="eyebrow">Monkey benchmark</p>
+              <h2 id="monkey-title">The coin-flip line</h2>
+              <p id="monkey-gap">50% correct by chance</p>
+            </div>
+            <strong class="monkey-score">50%</strong>
+          </section>
+
           <section class="leaderboard" aria-labelledby="leaderboard-title">
-            <div class="section-title"><div><p class="eyebrow">On this browser</p><h2 id="leaderboard-title">Local leaderboard</h2></div><span>All time</span></div>
+            <div class="section-title"><div><p class="eyebrow">On this browser</p><h2 id="leaderboard-title">Your best runs</h2></div><span>All time</span></div>
             <ol id="leaderboard-list"></ol>
           </section>
 
           <div class="result-actions">
-            <button class="share-button" type="button" data-action="share">Share score</button>
             <button class="again-button" type="button" data-action="again">Play again</button>
             <button class="review-button" type="button" data-action="review">Review answers</button>
+            <button class="share-button" type="button" data-action="share">Share score</button>
           </div>
-          <p class="privacy-copy">Results stay in this browser. Demo rows are labelled and are never mixed into your personal stats.</p>
+          <p class="privacy-copy">Results stay in this browser and are never uploaded.</p>
         </section>
 
         <section class="screen review-screen" data-screen="review" aria-labelledby="review-title">

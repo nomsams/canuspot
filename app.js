@@ -4,43 +4,80 @@ const CARD_ADVANCE_DELAY_MS = 820;
 
 const MODES = {
   woman_trans: {
-    question: "Who is this?",
-    reel: ["♀", "⚧", "♂"],
+    question: "Your call",
     choices: [
-      { id: "woman", label: "Woman", symbol: "♀" },
-      { id: "trans", label: "Trans", symbol: "⚧" },
+      { id: "woman", label: "Lady", tone: "lady" },
+      { id: "trans", label: "Ladyboy", tone: "ladyboy" },
     ],
     categories: ["woman", "trans-woman"],
-    modeLabel: "Woman / Trans",
-    modeIcon: "♀/⚧",
+    modeLabel: "Lady / Ladyboy",
   },
   man_trans: {
-    question: "Who is this?",
-    reel: ["♂", "⚧", "♀"],
+    question: "Your call",
     choices: [
-      { id: "man", label: "Man", symbol: "♂" },
-      { id: "trans", label: "Trans", symbol: "⚧" },
+      { id: "man", label: "Man", tone: "man" },
+      { id: "trans", label: "Trans man", tone: "ladyboy" },
     ],
     categories: ["man", "trans-man"],
-    modeLabel: "Man / Trans",
-    modeIcon: "♂/⚧",
+    modeLabel: "Man / Trans man",
   },
 };
+
+const INTRO_REEL = [
+  { label: "lady", tone: "lady" },
+  { label: "ladyboy", tone: "ladyboy" },
+  { label: "man", tone: "man" },
+];
 
 const LEVELS = [
   "Clueless", "Guessing blind", "Coin flipper", "Below average", "Almost there",
   "Average Joe", "Getting good", "Sharp eye", "Nearly expert", "Eagle eye", "Expert spotter",
 ];
 
-const DEMO_LEADERBOARD = [
-  { name: "monkey", score: 50, avatar: "🐵", avatarClass: "avatar-monkey", featured: true },
-  { name: "pipo", score: 90, avatar: "P", avatarClass: "avatar-yellow" },
-  { name: "fish54", score: 70, avatar: "F", avatarClass: "avatar-blue" },
-  { name: "anna", score: 20, avatar: "A", avatarClass: "avatar-red" },
-];
+const SCORE_COMMENTS = {
+  perfect: [
+    "Perfect. The monkey has left the chat.",
+    "100%. No notes—only suspiciously good eyesight.",
+    "A clean sweep. Even the monkey is impressed.",
+  ],
+  high: [
+    "So close—can you make it a clean 100%?",
+    "Sharp. Can you come even closer to 100%?",
+    "The monkey is safely behind you. Keep climbing.",
+    "Excellent eyes. One more run for perfection?",
+  ],
+  aboveChance: [
+    "You beat the monkey. It was closer than it looked.",
+    "Above chance. Now make the monkey nervous.",
+    "Humanity keeps a narrow lead.",
+    "Solid. Can you push this closer to 100%?",
+  ],
+  tied: [
+    "A perfect tie with the monkey. Awkward.",
+    "The monkey matched you without reading the rules.",
+    "Dead heat. The monkey wants a rematch.",
+    "Exactly 50%. Humanity is asking for another attempt.",
+    "Coin-flip territory—the monkey looks comfortable here.",
+  ],
+  belowChance: [
+    "We were told humans are smarter than monkeys.",
+    "The monkey is trying very hard not to look smug.",
+    "Below chance. Bold strategy.",
+    "The monkey has started giving you hints.",
+    "Humanity would like this score kept off the record.",
+    "The banana-powered opponent is currently ahead.",
+  ],
+  veryLow: [
+    "The monkey is now running the tutorial.",
+    "At this point, ask the monkey for coaching.",
+    "A brave attack on statistical probability.",
+    "The good news: improvement is almost guaranteed.",
+  ],
+};
 
 const state = {
   mode: "woman_trans",
+  availableModes: [],
   cards: [],
   quizLength: QUIZ_LENGTH,
   index: 0,
@@ -189,7 +226,7 @@ function getCardFocus(card) {
     const number = Number(value);
     return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
   };
-  return `${clamp(card.focus?.x, 50)}% ${clamp(card.focus?.y, 38)}%`;
+  return `${clamp(card.focus?.x, 50)}% 0%`;
 }
 
 function buildBalancedDeck(cards, mode, limit, shownIds = []) {
@@ -239,18 +276,17 @@ function showScreen(name) {
     screen.setAttribute("aria-hidden", String(!isActive));
   });
   const modeButton = el("[data-action='toggle-mode']");
-  if (modeButton) modeButton.disabled = name !== "intro";
+  if (modeButton) modeButton.disabled = name !== "intro" || state.availableModes.length < 2;
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (name === "results") triggerResultsAnimations();
   if (name === "review") renderReview();
 }
 
 async function setMode(mode) {
-  if (!MODES[mode]) return;
+  if (!MODES[mode] || !state.availableModes.includes(mode)) return;
   state.mode = mode;
   writeLocalValue("spot-check:mode", mode);
   const config = MODES[mode];
-  el("[data-action='toggle-mode'] .mode-icon").textContent = config.modeIcon;
   el("[data-action='toggle-mode'] .mode-text").textContent = config.modeLabel;
   el("[data-action='toggle-mode']").setAttribute("aria-pressed", mode === "man_trans");
   setupWordReel();
@@ -264,8 +300,9 @@ function renderChoices() {
   const config = MODES[state.mode];
   el("#question-text").textContent = config.question;
   el("#choice-row").innerHTML = config.choices.map((choice, index) => `
-    <button class="choice-button" type="button" data-choice="${choice.id}" aria-label="Choose ${choice.label}">
-      <span><span class="choice-symbol" aria-hidden="true">${choice.symbol}</span><small>${choice.label}</small></span>
+    <button class="choice-button tone-${choice.tone}" type="button" data-choice="${choice.id}" aria-label="Choose ${choice.label}">
+      <span class="choice-arrow" aria-hidden="true">${index ? "→" : "←"}</span>
+      <span class="choice-copy"><strong>${choice.label}</strong><small>Swipe ${index ? "right" : "left"}</small></span>
     </button>`).join("");
   el("#stamp-left").textContent = config.choices[0].label.toUpperCase();
   el("#stamp-right").textContent = config.choices[1].label.toUpperCase();
@@ -282,11 +319,25 @@ function getCardsForMode(cards, mode) {
   );
 }
 
+function updateAvailableModes(cards) {
+  state.availableModes = Object.keys(MODES).filter((mode) => {
+    const modeCards = getCardsForMode(cards, mode);
+    return MODES[mode].choices.every((choice) =>
+      modeCards.some((card) => card.labels?.[mode] === choice.id)
+    );
+  });
+  const modeButton = el("[data-action='toggle-mode']");
+  modeButton.hidden = state.availableModes.length < 2;
+  modeButton.disabled = state.availableModes.length < 2 || !el(".intro-screen").classList.contains("is-active");
+  if (state.availableModes.length === 0) throw new Error("Add at least one portrait for each answer to start a round.");
+}
+
 async function startQuiz() {
   const launchButtons = all("[data-action='start'], [data-action='again']");
   launchButtons.forEach((button) => { button.disabled = true; button.setAttribute("aria-busy", "true"); });
   try {
     const allCards = await window.SpotCheckData.loadCards();
+    updateAvailableModes(allCards);
     const modeCards = getCardsForMode(allCards, state.mode);
     if (modeCards.length < 2) throw new Error("This mode needs at least two valid portrait entries.");
 
@@ -390,19 +441,51 @@ function undoLastChoice() {
   haptic("tap");
 }
 
+function pickComment(comments) {
+  return comments[Math.floor(Math.random() * comments.length)];
+}
+
+function getScoreComment(score) {
+  if (score === 100) return pickComment(SCORE_COMMENTS.perfect);
+  if (score >= 80) return pickComment(SCORE_COMMENTS.high);
+  if (score >= 60) return pickComment(SCORE_COMMENTS.aboveChance);
+  if (score >= 50) return pickComment(SCORE_COMMENTS.tied);
+  if (score >= 30) return pickComment(SCORE_COMMENTS.belowChance);
+  return pickComment(SCORE_COMMENTS.veryLow);
+}
+
+function getScoreClass(score) {
+  if (score < 50) return "score-low";
+  if (score <= 60) return "score-mid";
+  return "score-high";
+}
+
+function updateMonkeyBenchmark(score) {
+  const benchmark = el("#monkey-benchmark");
+  const difference = score - 50;
+  benchmark.classList.toggle("is-close", Math.abs(difference) <= 10);
+  benchmark.classList.toggle("is-tied", difference === 0);
+  el("#monkey-gap").textContent = difference === 0
+    ? "You are tied at 50%"
+    : difference > 0
+      ? `You are ${difference} points ahead`
+      : `The monkey is ${Math.abs(difference)} points ahead`;
+}
+
 async function finishQuiz() {
   const correctCount = state.answers.filter((answer) => answer.correct).length;
   const score = Math.round((correctCount / state.quizLength) * 100);
   const levelIndex = Math.min(10, Math.floor(score / 10));
   const scoreValue = el("#score-value");
   scoreValue.textContent = `${score}%`;
-  scoreValue.className = score < 50 ? "score-low" : "score-high";
-  el("#score-message").textContent = score >= 90 ? "Uncanny accuracy!" : score >= 70 ? "Sharp perception!" : score >= 50 ? "Better than chance." : "Room to improve.";
+  scoreValue.className = getScoreClass(score);
+  el("#score-message").textContent = getScoreComment(score);
   el("#score-detail").textContent = `${correctCount} of ${state.quizLength} correct.`;
   el("#pin-score").textContent = `${score}%`;
   el("#level-name").textContent = LEVELS[levelIndex];
   el("#rank-low").textContent = LEVELS[0];
   el("#rank-high").textContent = LEVELS[10];
+  updateMonkeyBenchmark(score);
   showScreen("results");
   requestAnimationFrame(() => { el("#meter-pin").style.setProperty("--pin", `${score}%`); });
 
@@ -440,30 +523,19 @@ async function renderLeaderboard() {
     return `<li class="leaderboard-entry"><span class="avatar ${avatarClass}">${initial}</span><b>You</b><span class="bar"><i style="--score: ${entry.score}%"></i></span><strong>${entry.score}%</strong></li>`;
   }).join("");
 
-  const renderDemoEntry = (entry) => {
-    const featuredClass = entry.featured ? " featured-monkey" : "";
-    const avatar = entry.featured
-      ? `<span class="monkey-face" aria-hidden="true">${entry.avatar}</span>`
-      : entry.avatar;
-    const detail = entry.featured ? "featured demo" : "demo";
-    return `<li class="leaderboard-entry demo${featuredClass}"><span class="avatar ${entry.avatarClass}">${avatar}</span><b>${entry.name}<small>${detail}</small></b><span class="bar"><i style="--score: ${entry.score}%"></i></span><strong>${entry.score}%</strong></li>`;
-  };
-  const featuredEntries = DEMO_LEADERBOARD.filter((entry) => entry.featured).map(renderDemoEntry).join("");
-  const otherDemoEntries = DEMO_LEADERBOARD.filter((entry) => !entry.featured).map(renderDemoEntry).join("");
-
-  list.innerHTML = featuredEntries + realEntries + otherDemoEntries;
+  el(".leaderboard").hidden = leaderboard.length === 0;
+  list.innerHTML = realEntries;
   animateLeaderboardEntries();
 }
 
 function animateLeaderboardEntries() {
   const entries = all("#leaderboard-list .leaderboard-entry");
   entries.forEach((entry, i) => {
-    const finalOpacity = entry.classList.contains("demo") && !entry.classList.contains("featured-monkey") ? "0.7" : "1";
     entry.style.opacity = "0";
     entry.style.transform = "translateY(20px)";
     entry.style.transition = "opacity 0.4s ease, transform 0.4s ease";
     window.setTimeout(() => {
-      entry.style.opacity = finalOpacity;
+      entry.style.opacity = "1";
       entry.style.transform = "translateY(0)";
     }, 200 + i * 80);
   });
@@ -474,6 +546,7 @@ function triggerResultsAnimations() {
     ".results-heading",
     ".rank-card",
     ".personal-stats",
+    ".monkey-benchmark",
     ".leaderboard",
     ".result-actions"
   ];
@@ -609,18 +682,18 @@ function showToast(message) {
 let wordReelInterval;
 function setupWordReel() {
   clearInterval(wordReelInterval);
-  const config = MODES[state.mode];
-  const words = config.reel;
   let index = 0;
   const wordEl = el("#reel-word");
-  wordEl.textContent = words[0];
+  wordEl.textContent = INTRO_REEL[0].label;
+  wordEl.className = `tone-${INTRO_REEL[0].tone}`;
   wordReelInterval = setInterval(() => {
-    index = (index + 1) % words.length;
-    wordEl.classList.remove("is-changing");
+    index = (index + 1) % INTRO_REEL.length;
+    const word = INTRO_REEL[index];
+    wordEl.className = `tone-${word.tone}`;
     void wordEl.offsetWidth;
-    wordEl.textContent = words[index];
+    wordEl.textContent = word.label;
     wordEl.classList.add("is-changing");
-  }, 1000);
+  }, 1350);
 }
 
 async function initIntroImage() {
@@ -702,7 +775,7 @@ function renderReview() {
   }).join("");
 
   el("#review-score").textContent = `${score}%`;
-  el("#review-score").className = score < 50 ? "score-low" : "score-high";
+  el("#review-score").className = getScoreClass(score);
 
   all(".review-item").forEach((item) => {
     item.addEventListener("click", (e) => {
@@ -796,8 +869,9 @@ document.addEventListener("click", (event) => {
   if (action === "home") { showScreen("intro"); initIntroImage(); updateIntroProgress(); }
   if (action === "share") shareScore();
   if (action === "toggle-mode") {
-    const newMode = state.mode === "woman_trans" ? "man_trans" : "woman_trans";
-    setMode(newMode);
+    const currentIndex = state.availableModes.indexOf(state.mode);
+    const newMode = state.availableModes[(currentIndex + 1) % state.availableModes.length];
+    if (newMode) setMode(newMode);
   }
   if (action === "sound") {
     state.sound = !state.sound;
@@ -829,8 +903,16 @@ if (savedSound !== null) {
   }
 }
 
-const savedMode = readLocalValue("spot-check:mode");
-setMode(MODES[savedMode] ? savedMode : "woman_trans").catch(() => {
+showScreen("intro");
+
+async function initializeApp() {
+  const cards = await window.SpotCheckData.loadCards();
+  updateAvailableModes(cards);
+  const savedMode = readLocalValue("spot-check:mode");
+  const initialMode = state.availableModes.includes(savedMode) ? savedMode : state.availableModes[0];
+  await setMode(initialMode);
+}
+
+initializeApp().catch(() => {
   showToast("Portraits could not be loaded. Try refreshing the page.");
 });
-showScreen("intro");
