@@ -624,15 +624,16 @@ function renderCard() {
   behind.style.backgroundSize = "cover";
   behind.style.backgroundPosition = getCardFocus(card);
   state.locked = true;
-  active.className = "swipe-card card-active is-loading";
+  active.className = "swipe-card card-active is-loading is-resetting";
   active.style.cssText = "";
   setPortraitPresentation(active, el("#card-image"), el("#card-backdrop"), card, "Portrait photo", () => {
     if (state.cards[state.index]?.id !== card.id) return;
     active.classList.remove("is-loading");
-    state.locked = false;
     const nextCard = state.cards[state.index + 1];
     requestAnimationFrame(() => {
       if (state.cards[state.index]?.id !== card.id) return;
+      active.classList.remove("is-resetting");
+      state.locked = false;
       behind.style.backgroundImage = nextCard ? `url(${nextCard.src})` : "";
       behind.style.backgroundSize = "cover";
       behind.style.backgroundPosition = nextCard ? getCardFocus(nextCard) : "";
