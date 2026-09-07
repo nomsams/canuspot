@@ -1,6 +1,5 @@
 const QUIZ_LENGTH = 10;
-const ANSWER_REVEAL_DELAY_MS = 260;
-const CARD_ADVANCE_DELAY_MS = 820;
+let interfaceBeatMs = 60000 / 74;
 
 const MODES = {
   woman_trans: {
@@ -464,18 +463,20 @@ function choose(choice, direction) {
   active.classList.add(correct ? "correct" : "incorrect");
   el("#stamp-left").style.opacity = direction < 0 ? 1 : 0;
   el("#stamp-right").style.opacity = direction > 0 ? 1 : 0;
+  const answerRevealDelayMs = Math.round(interfaceBeatMs * 0.5);
+  const cardAdvanceDelayMs = Math.max(820, Math.round(interfaceBeatMs * 1.5));
 
   window.setTimeout(() => {
     active.classList.add("is-leaving");
     active.style.transform = `translateX(${direction * 145}%) rotate(${direction * 19}deg)`;
     active.style.opacity = "0";
-  }, ANSWER_REVEAL_DELAY_MS);
+  }, answerRevealDelayMs);
 
   window.setTimeout(() => {
     state.index += 1;
     if (state.index >= state.quizLength) finishQuiz();
     else { renderCard(); state.locked = false; }
-  }, CARD_ADVANCE_DELAY_MS);
+  }, cardAdvanceDelayMs);
 }
 
 function undoLastChoice() {
@@ -602,24 +603,26 @@ function triggerResultsAnimations() {
     ".leaderboard",
     ".result-actions"
   ];
+  const openingDelay = Math.round(interfaceBeatMs * 0.25);
+  const stepDelay = Math.round(interfaceBeatMs / 6);
   elements.forEach((selector, i) => {
     const el = document.querySelector(selector);
     if (el) {
       el.style.opacity = "0";
       el.style.transform = "translateY(20px)";
-      el.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+      el.style.transition = `opacity ${interfaceBeatMs * 0.65}ms ease, transform ${interfaceBeatMs * 0.65}ms ease`;
       window.setTimeout(() => {
         el.style.opacity = "1";
         el.style.transform = "translateY(0)";
-      }, 100 + i * 120);
+      }, openingDelay + i * stepDelay);
     }
   });
 
   const scoreEl = el("#score-value");
   if (scoreEl) {
     scoreEl.style.transform = "scale(0.5)";
-    scoreEl.style.transition = "transform 0.6s cubic-bezier(.16,.85,.25,1)";
-    window.setTimeout(() => { scoreEl.style.transform = "scale(1)"; }, 300);
+    scoreEl.style.transition = `transform ${interfaceBeatMs * 0.75}ms cubic-bezier(.16,.85,.25,1)`;
+    window.setTimeout(() => { scoreEl.style.transform = "scale(1)"; }, Math.round(interfaceBeatMs * 0.5));
   }
 }
 
@@ -735,20 +738,38 @@ function showToast(message) {
 }
 
 let wordReelInterval;
-function setupWordReel() {
+let wordReelIndex = 0;
+let wordReelPeriodMs = interfaceBeatMs * 2;
+
+function setupWordReel({ reset = true, periodMs = wordReelPeriodMs } = {}) {
   clearInterval(wordReelInterval);
-  let index = 0;
+  wordReelPeriodMs = periodMs;
   const wordEl = el("#reel-word");
-  wordEl.textContent = INTRO_REEL[0].label;
-  wordEl.className = `tone-${INTRO_REEL[0].tone}`;
+  if (reset) {
+    wordReelIndex = 0;
+    wordEl.textContent = INTRO_REEL[0].label;
+    wordEl.className = `tone-${INTRO_REEL[0].tone}`;
+  }
   wordReelInterval = setInterval(() => {
-    index = (index + 1) % INTRO_REEL.length;
-    const word = INTRO_REEL[index];
+    wordReelIndex = (wordReelIndex + 1) % INTRO_REEL.length;
+    const word = INTRO_REEL[wordReelIndex];
     wordEl.className = `tone-${word.tone}`;
     void wordEl.offsetWidth;
     wordEl.textContent = word.label;
     wordEl.classList.add("is-changing");
-  }, 1350);
+  }, wordReelPeriodMs);
+}
+
+function syncInterfaceToBeat(beatMs, scene) {
+  if (!Number.isFinite(beatMs) || beatMs <= 0) return;
+  interfaceBeatMs = beatMs;
+  document.documentElement.style.setProperty("--music-beat", `${beatMs}ms`);
+  document.documentElement.style.setProperty("--music-half-beat", `${beatMs * 0.5}ms`);
+  document.documentElement.style.setProperty("--music-double-beat", `${beatMs * 2}ms`);
+  document.documentElement.style.setProperty("--music-bar", `${beatMs * 4}ms`);
+  if (scene === "waiting" && el(".intro-screen").classList.contains("is-active")) {
+    setupWordReel({ reset: false, periodMs: beatMs * 2 });
+  }
 }
 
 async function initIntroImage() {
@@ -955,6 +976,7 @@ updateSoundButton();
 window.SpotCheckMusic?.setEnabled(state.sound);
 
 window.addEventListener("spotcheckmusicchange", (event) => {
+  syncInterfaceToBeat(Number(event.detail?.beatMs), event.detail?.scene);
   if (!state.sound) return;
   const button = el("[data-action='sound']");
   if (button && event.detail?.title) button.title = `Music on · ${event.detail.title}`;

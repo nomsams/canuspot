@@ -101,11 +101,11 @@ Toggle modes using the header button. A mode without at least one image for each
 
 `music.js` contains five original, procedurally synthesized tunes with a quiet retro-fantasy character and Thai-inspired pentatonic ornamentation. It uses the browser's Web Audio API—there are no copied melodies, recordings, samples, external music requests, or audio files to host.
 
-- Waiting screen: **Lantern Courtyard** and **Bamboo Map** alternate
-- Quiz screen: **Silk Road Skirmish** and **Temple Steps** alternate
+- Waiting screen: **Lantern Courtyard** or **Bamboo Map**, rotating on the next visit
+- Quiz screen: **Silk Road Skirmish** or **Temple Steps**, rotating on the next round
 - Results and review screens: **Golden Score** loops
 
-Music is enabled by default, begins after the visitor's first interaction to respect browser autoplay rules, crossfades when the screen changes, and loops indefinitely. The header music button mutes both the score and answer sounds; that preference is saved locally.
+Each scene keeps its selected tune and loops it indefinitely instead of switching tracks mid-screen. Tunes are scheduled in longer two-cycle passes, and only rotate when the visitor later returns to that scene. Their BPM is exposed to the interface so the intro word reel, card timing, score reveals, meter, monkey, and music indicator move on beat. Music is enabled by default, begins after the visitor's first interaction to respect browser autoplay rules, and crossfades when the screen changes. The header music button mutes both the score and answer sounds; that preference is saved locally.
 
 ## GitHub Pages
 

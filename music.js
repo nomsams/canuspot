@@ -77,6 +77,7 @@
     battle: ["silkRoadSkirmish", "templeSteps"],
     results: ["goldenScore"],
   };
+  const TUNE_CYCLES_PER_PASS = 2;
 
   let context = null;
   let musicBus = null;
@@ -84,8 +85,10 @@
   let noiseBuffer = null;
   let activeTrack = null;
   let loopTimer = null;
-  let scene = "waiting";
+  let scene = null;
   let activeScene = null;
+  let activeTuneKey = null;
+  let selectedTuneKey = null;
   let enabled = true;
   let currentTitle = null;
   const playlistPositions = { waiting: 0, battle: 0, results: 0 };
@@ -212,7 +215,7 @@
     oscillator.stop(start + 0.07);
   }
 
-  function scheduleTune(tune, start, destination) {
+  function scheduleTuneCycle(tune, start, destination) {
     const beat = 60 / tune.bpm;
     const leadStep = beat / 2;
     tune.lead.forEach((degree, index) => {
@@ -250,6 +253,30 @@
     return beat * 32;
   }
 
+  function scheduleTune(tune, start, destination) {
+    const cycleDuration = (60 / tune.bpm) * 32;
+    for (let cycle = 0; cycle < TUNE_CYCLES_PER_PASS; cycle += 1) {
+      scheduleTuneCycle(tune, start + cycle * cycleDuration, destination);
+    }
+    return cycleDuration * TUNE_CYCLES_PER_PASS;
+  }
+
+  function announceTune(tune, phase) {
+    const beatMs = 60000 / tune.bpm;
+    window.dispatchEvent(new CustomEvent("spotcheckmusicchange", {
+      detail: { scene, title: tune.title, bpm: tune.bpm, beatMs, phase },
+    }));
+  }
+
+  function selectTuneForScene(nextScene) {
+    const playlist = PLAYLISTS[nextScene];
+    const position = playlistPositions[nextScene] % playlist.length;
+    selectedTuneKey = playlist[position];
+    playlistPositions[nextScene] = (position + 1) % playlist.length;
+    currentTitle = TUNES[selectedTuneKey].title;
+    announceTune(TUNES[selectedTuneKey], "selected");
+  }
+
   function stopTrack(fadeSeconds = 0.35) {
     clearTimeout(loopTimer);
     loopTimer = null;
@@ -262,15 +289,13 @@
     window.setTimeout(() => retiringTrack.disconnect(), (fadeSeconds + 0.2) * 1000);
     activeTrack = null;
     activeScene = null;
-    currentTitle = null;
+    activeTuneKey = null;
   }
 
-  function playNextTune() {
-    if (!enabled || !context || context.state === "closed") return;
-    const playlist = PLAYLISTS[scene];
-    const position = playlistPositions[scene] % playlist.length;
-    const tune = TUNES[playlist[position]];
-    playlistPositions[scene] = (position + 1) % playlist.length;
+  function playSelectedTune() {
+    if (!enabled || !context || context.state === "closed" || !selectedTuneKey) return;
+    const scheduledTuneKey = selectedTuneKey;
+    const tune = TUNES[scheduledTuneKey];
     stopTrack(0.45);
 
     const start = context.currentTime + 0.09;
@@ -280,12 +305,13 @@
     track.connect(musicBus);
     activeTrack = track;
     activeScene = scene;
+    activeTuneKey = scheduledTuneKey;
     currentTitle = tune.title;
     const duration = scheduleTune(tune, start, track);
     const scheduledScene = scene;
-    window.dispatchEvent(new CustomEvent("spotcheckmusicchange", { detail: { scene, title: tune.title } }));
+    announceTune(tune, "playing");
     loopTimer = window.setTimeout(() => {
-      if (enabled && scene === scheduledScene) playNextTune();
+      if (enabled && scene === scheduledScene && selectedTuneKey === scheduledTuneKey) playSelectedTune();
     }, Math.max(1000, (duration - 0.3) * 1000));
   }
 
@@ -293,18 +319,22 @@
     if (!enabled || !AudioContextClass) return false;
     createContext();
     if (context.state === "suspended") await context.resume();
-    if (!activeTrack || activeScene !== scene) playNextTune();
+    if (!activeTrack || activeScene !== scene || activeTuneKey !== selectedTuneKey) playSelectedTune();
     return context.state === "running";
   }
 
   function setScene(nextScene) {
     if (!PLAYLISTS[nextScene]) return;
-    if (scene === nextScene && activeScene === nextScene) return;
-    scene = nextScene;
-    playlistPositions[nextScene] = 0;
+    const sceneChanged = scene !== nextScene || !selectedTuneKey;
+    if (sceneChanged) {
+      scene = nextScene;
+      selectTuneForScene(nextScene);
+    }
     if (enabled && context && context.state !== "closed") {
       if (context.state === "suspended") context.resume().catch(() => {});
-      playNextTune();
+      if (sceneChanged || !activeTrack || activeScene !== scene || activeTuneKey !== selectedTuneKey) {
+        playSelectedTune();
+      }
     }
   }
 
@@ -332,7 +362,9 @@
       enabled,
       scene,
       activeScene,
+      activeTuneKey,
       title: currentTitle,
+      bpm: selectedTuneKey ? TUNES[selectedTuneKey].bpm : null,
       contextState: context?.state || "not-started",
       tuneCount: Object.keys(TUNES).length,
     };
