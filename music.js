@@ -2,7 +2,8 @@
   "use strict";
 
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  const SCALE = [0, 3, 5, 7, 10];
+  const G_TONIC = 67;
+  const SCALE = [0, 2, 5, 7, 9];
   const BRIGHT_SCALE = [0, 2, 4, 7, 9];
   const PHRASES = {
     lanternA: [0, 2, 4, 2, 3, 2, 0, null, 2, 4, 5, 4, 2, 0, -1, null],
@@ -27,7 +28,7 @@
     lanternCourtyard: {
       title: "Lantern Courtyard",
       bpm: 74,
-      root: 62,
+      root: G_TONIC,
       voice: "pluck",
       lead: melody("lanternA", "lanternB", "lanternC", "lanternB"),
       bass: [0, 0, -1, 0, 2, 0, -1, 0],
@@ -36,7 +37,7 @@
     bambooMap: {
       title: "Bamboo Map",
       bpm: 80,
-      root: 65,
+      root: G_TONIC,
       voice: "reed",
       lead: melody("bambooA", "bambooB", "bambooC", "bambooB"),
       bass: [0, -1, 0, 2, 0, 3, 2, 0],
@@ -45,33 +46,35 @@
     silkRoadSkirmish: {
       title: "Silk Road Skirmish",
       bpm: 98,
-      root: 62,
+      root: G_TONIC,
       scale: BRIGHT_SCALE,
       voice: "pluck",
       lead: melody("silkA", "silkB", "silkC", "silkB"),
       bass: [0, 2, 0, -1, 0, 3, 2, 0],
       bassPulse: [0, 0, 2, 2, 0, -1, 0, 2, 3, 2, 0, -1, 0, 2, 4, 2],
       arpeggio: [0, 2, 4, 7, 4, 2, 3, 5, 7, 5, 3, 2, 0, 2, 4, 5],
+      arpeggioOctave: 0,
       ornaments: [6, 14],
       lively: true,
     },
     templeSteps: {
       title: "Temple Steps",
       bpm: 106,
-      root: 60,
+      root: G_TONIC,
       scale: BRIGHT_SCALE,
       voice: "reed",
       lead: melody("templeA", "templeB", "templeC", "templeB"),
       bass: [0, 0, 2, -1, 0, 3, 2, 0],
       bassPulse: [0, 2, 0, 2, 3, 2, 0, -1, 0, 2, 4, 3, 2, 0, -1, 2],
       arpeggio: [0, 2, 4, 5, 7, 5, 4, 2, 3, 5, 7, 9, 7, 5, 4, 2],
+      arpeggioOctave: 0,
       ornaments: [4, 8, 12],
       lively: true,
     },
     goldenScore: {
       title: "Golden Score",
       bpm: 78,
-      root: 65,
+      root: G_TONIC,
       voice: "bell",
       lead: melody("goldA", "goldB", "goldC", "goldA"),
       bass: [0, 2, 3, 0, 4, 3, 2, 0],
@@ -85,6 +88,8 @@
     results: ["goldenScore"],
   };
   const TUNE_CYCLES_PER_PASS = 2;
+  const LOOP_CROSSFADE_SECONDS = 0.85;
+  const SCENE_CROSSFADE_SECONDS = 1.6;
 
   let context = null;
   let musicBus = null;
@@ -270,7 +275,7 @@
         const degree = tune.arpeggio[step % tune.arpeggio.length];
         const accent = step % 8 === 0 ? 0.052 : 0.036;
         scheduleTone(
-          scaleNote(tune.root + 12, degree, tuneScale),
+          scaleNote(tune.root + (tune.arpeggioOctave ?? 12), degree, tuneScale),
           start + step * arpeggioStep + beat * 0.25,
           beat * 0.21,
           accent,
@@ -323,9 +328,15 @@
     loopTimer = null;
     if (!context || !activeTrack) return;
     const now = context.currentTime;
-    activeTrack.gain.cancelScheduledValues(now);
-    activeTrack.gain.setValueAtTime(Math.max(0.0001, activeTrack.gain.value), now);
-    activeTrack.gain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
+    const gain = activeTrack.gain;
+    if (typeof gain.cancelAndHoldAtTime === "function") {
+      gain.cancelAndHoldAtTime(now);
+    } else {
+      const currentGain = Math.max(0.0001, gain.value);
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(currentGain, now);
+    }
+    gain.exponentialRampToValueAtTime(0.0001, now + fadeSeconds);
     const retiringTrack = activeTrack;
     window.setTimeout(() => retiringTrack.disconnect(), (fadeSeconds + 0.2) * 1000);
     activeTrack = null;
@@ -333,16 +344,16 @@
     activeTuneKey = null;
   }
 
-  function playSelectedTune() {
+  function playSelectedTune(fadeSeconds = LOOP_CROSSFADE_SECONDS) {
     if (!enabled || !context || context.state === "closed" || !selectedTuneKey) return;
     const scheduledTuneKey = selectedTuneKey;
     const tune = TUNES[scheduledTuneKey];
-    stopTrack(0.45);
+    stopTrack(fadeSeconds);
 
-    const start = context.currentTime + 0.09;
+    const start = context.currentTime + 0.06;
     const track = context.createGain();
-    track.gain.setValueAtTime(0.0001, start);
-    track.gain.exponentialRampToValueAtTime(1, start + 0.75);
+    track.gain.setValueAtTime(0.0001, context.currentTime);
+    track.gain.exponentialRampToValueAtTime(1, start + fadeSeconds);
     track.connect(musicBus);
     activeTrack = track;
     activeScene = scene;
@@ -352,15 +363,17 @@
     const scheduledScene = scene;
     announceTune(tune, "playing");
     loopTimer = window.setTimeout(() => {
-      if (enabled && scene === scheduledScene && selectedTuneKey === scheduledTuneKey) playSelectedTune();
-    }, Math.max(1000, (duration - 0.3) * 1000));
+      if (enabled && scene === scheduledScene && selectedTuneKey === scheduledTuneKey) {
+        playSelectedTune(LOOP_CROSSFADE_SECONDS);
+      }
+    }, Math.max(1000, (duration - LOOP_CROSSFADE_SECONDS * 0.75) * 1000));
   }
 
   async function unlock() {
     if (!enabled || !AudioContextClass) return false;
     createContext();
     if (context.state === "suspended") await context.resume();
-    if (!activeTrack || activeScene !== scene || activeTuneKey !== selectedTuneKey) playSelectedTune();
+    if (!activeTrack || activeScene !== scene || activeTuneKey !== selectedTuneKey) playSelectedTune(0.75);
     return context.state === "running";
   }
 
@@ -374,7 +387,7 @@
     if (enabled && context && context.state !== "closed") {
       if (context.state === "suspended") context.resume().catch(() => {});
       if (sceneChanged || !activeTrack || activeScene !== scene || activeTuneKey !== selectedTuneKey) {
-        playSelectedTune();
+        playSelectedTune(sceneChanged ? SCENE_CROSSFADE_SECONDS : LOOP_CROSSFADE_SECONDS);
       }
     }
   }
