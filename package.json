@@ -4,6 +4,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "assets": "node scripts/generate-manifest.mjs",
-    "check": "node --check music.js && node --check app.js && node scripts/generate-manifest.mjs --check"
+    "soundtrack": "node scripts/render-soundtrack.mjs",
+    "check": "node --check music.js && node --check app.js && node scripts/generate-manifest.mjs --check && node scripts/render-soundtrack.mjs --check"
   }
 }

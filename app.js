@@ -275,6 +275,27 @@ function getCardFocus(card) {
   return `${clamp(card.focus?.x, 50)}% 0%`;
 }
 
+function setPortraitPresentation(container, image, backdrop, card, alt) {
+  const focus = getCardFocus(card);
+  const portraitId = card.id;
+  container.classList.remove("is-wide-image");
+  image.dataset.portraitId = portraitId;
+  image.alt = alt;
+  image.style.objectPosition = focus;
+  backdrop.src = card.src;
+  backdrop.style.objectPosition = focus;
+
+  const updateFit = () => {
+    if (image.dataset.portraitId !== portraitId || !image.naturalWidth || !image.naturalHeight) return;
+    const isWide = image.naturalWidth / image.naturalHeight >= 1.15;
+    container.classList.toggle("is-wide-image", isWide);
+    image.style.objectPosition = isWide ? "50% 50%" : focus;
+  };
+  image.onload = updateFit;
+  image.src = card.src;
+  if (image.complete) requestAnimationFrame(updateFit);
+}
+
 function buildBalancedDeck(cards, mode, limit, shownIds = []) {
   const choiceIds = MODES[mode].choices.map((choice) => choice.id);
   const seen = new Set(shownIds);
@@ -430,9 +451,7 @@ function renderCard() {
   quizPinchZoom?.reset();
   active.className = "swipe-card card-active";
   active.style.cssText = "";
-  el("#card-image").src = card.src;
-  el("#card-image").alt = "Portrait photo";
-  el("#card-image").style.objectPosition = getCardFocus(card);
+  setPortraitPresentation(active, el("#card-image"), el("#card-backdrop"), card, "Portrait photo");
   el("#card-number").textContent = state.index + 1;
   el("#card-total").textContent = state.quizLength;
   el("#progress-bar").style.width = `${((state.index + 1) / state.quizLength) * 100}%`;
@@ -974,9 +993,7 @@ function openReviewDetail(index) {
   const correctLabel = MODES[state.mode].choices.find(c => c.id === card.labels[state.mode])?.label || "?";
   const userLabel = MODES[state.mode].choices.find(c => c.id === answer.choice)?.label || "?";
 
-  el("#detail-image").src = card.src;
-  el("#detail-image").alt = card.alt || "Portrait";
-  el("#detail-image").style.objectPosition = getCardFocus(card);
+  setPortraitPresentation(el("#detail-card"), el("#detail-image"), el("#detail-backdrop"), card, card.alt || "Portrait");
   el("#detail-result").textContent = answer.correct ? "Correct" : "Incorrect";
   el("#detail-result").className = `detail-result ${answer.correct ? 'correct' : 'incorrect'}`;
   el("#detail-user-choice").textContent = `You chose: ${userLabel}`;

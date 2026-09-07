@@ -64,7 +64,8 @@
           <div class="deck" id="deck" aria-live="polite">
             <article class="swipe-card card-behind" aria-hidden="true"><div class="card-placeholder"></div></article>
             <article class="swipe-card card-active" id="active-card">
-              <img id="card-image" alt="Portrait card" draggable="false" />
+              <img class="portrait-backdrop" id="card-backdrop" alt="" aria-hidden="true" draggable="false" />
+              <img class="portrait-main" id="card-image" alt="Portrait card" draggable="false" />
               <div class="choice-stamp stamp-left" id="stamp-left"></div>
               <div class="choice-stamp stamp-right" id="stamp-right"></div>
             </article>
@@ -151,7 +152,8 @@
             <button class="nav-button" type="button" data-action="review-next" aria-label="Next" disabled>›</button>
           </div>
           <article class="detail-card" id="detail-card">
-            <img id="detail-image" alt="Portrait" draggable="false" />
+            <img class="portrait-backdrop" id="detail-backdrop" alt="" aria-hidden="true" draggable="false" />
+            <img class="portrait-main" id="detail-image" alt="Portrait" draggable="false" />
             <div class="detail-shade"></div>
             <div class="detail-content">
               <p class="detail-result" id="detail-result">Correct</p>

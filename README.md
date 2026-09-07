@@ -67,7 +67,7 @@ For fully manual manifests, the project supports **four category folders**:
 
 ### Image requirements
 - Format: WebP or AVIF recommended
-- Any aspect ratio is supported; the phone card uses a less aggressive, near-square cover crop around the detected face
+- Any aspect ratio is supported; the phone card is taller than square, and unusually wide images switch to a full-image view over a softly blurred fill
 - Minimum 10 images per answer group for good randomization
 
 ### Manifest format
@@ -99,19 +99,19 @@ Toggle modes using the header button. A mode without at least one image for each
 
 ## Original soundtrack
 
-`music.js` contains five original, procedurally synthesized tunes with a quiet retro-fantasy character and Thai-inspired pentatonic ornamentation. It uses the browser's Web Audio API—there are no copied melodies, recordings, samples, external music requests, or audio files to host.
+The app ships five original, pre-rendered tunes with a happy retro-fantasy character and Thai-inspired pentatonic ornamentation. `scripts/render-soundtrack.mjs` creates deterministic mono WAV files during development; visitors only download and play the finished audio. There are no copied melodies, recordings, samples, external music requests, or runtime synthesis.
 
 - Waiting screen: **Lantern Courtyard** or **Bamboo Map**, rotating on the next visit
 - Quiz screen: **Silk Road Skirmish** or **Temple Steps**, rotating on the next round
 - Results and review screens: **Golden Score** loops
 
-Each scene keeps its selected tune and loops it indefinitely instead of switching tracks mid-screen. Tunes are scheduled one 32-beat cycle at a time, and only rotate when the visitor later returns to that scene. Their BPM is exposed to the interface so the intro word reel, card timing, score reveals, meter, monkey, and music indicator move on beat. Music is enabled by default, begins after the visitor's first interaction to respect browser autoplay rules, and crossfades when the screen changes. The header music button mutes both the score and answer sounds; that preference is saved locally.
+Each scene keeps its selected tune and loops it indefinitely instead of switching tracks mid-screen. Tunes only rotate when the visitor later returns to that scene. Their exact BPM is exposed to the interface so the intro word reel, swinging question mark, card timing, score reveals, meter, monkey, and music indicator move on beat. Music is enabled by default, begins after the visitor's first interaction to respect browser autoplay rules, and uses a short volume-only crossfade when the screen changes. The header music button mutes both the score and answer sounds; that preference is saved locally.
 
 The two quiz themes use a brighter pentatonic tuning, original singable retro-fantasy hooks, offbeat plucked arpeggios, and short octave bass anchors. The result is happier and more game-like while the battle phase keeps its lift and forward motion without overpowering the portraits.
 
-All five themes share G as their tonal center. The calm scenes use a suspended G pentatonic scale while battle and results use the closely related G-major pentatonic scale, preserving common notes across the smooth scene crossfade. Active gain automation is held at its current level during a transition so rapid navigation does not introduce volume jumps.
+All five themes share G as their tonal center. The calm scenes use a suspended G pentatonic scale while battle and results use the closely related G-major pentatonic scale, preserving common notes across the smooth scene crossfade.
 
-The mobile-friendly audio graph uses one oscillator per note, a single scheduled cycle, lightweight tonal wood clicks, and one sparse bass line. It removes the noise-based hi-hat and second bass pulse, uses much shorter overlap during crossfades, and explicitly stops queued sources when a scene ends. This sharply reduces startup work and prevents old synth nodes from lingering on slower phones.
+At runtime, `music.js` uses ordinary looping `HTMLAudioElement` players. There is no `AudioContext`, oscillator graph, note scheduler, noise generator, live filter, or live compressor. Even the correct/wrong cues are pre-rendered WAV files. Run `npm run soundtrack` after editing the generator; `npm run check` verifies that every checked-in audio asset is current.
 
 ## GitHub Pages
 
@@ -143,11 +143,13 @@ For Supabase, replace the adapter with calls to an Edge Function. Recommended ta
 - `index.html` — accessible app structure
 - `styles.css` — responsive mobile/desktop UI and animations
 - `app.js` — quiz state, swipe gestures, scoring, local adapter, and sharing
-- `music.js` — five-scene-aware procedural Web Audio compositions
+- `music.js` — lightweight scene-aware playback and volume crossfades for pre-rendered tracks
+- `assets/audio/` — five finished music loops and two finished answer cues
 - `assets/manifest.json` — static image metadata
 - `assets/unsorted/` — quick-import source images named `lady…` or `ldb…`
 - `assets/focus-overrides.json` — optional per-file crop adjustments
 - `scripts/generate-manifest.mjs` — dependency-free asset manifest generator
+- `scripts/render-soundtrack.mjs` — dependency-free offline soundtrack renderer
 - `scripts/detect-face-focus.py` — optional OpenCV YuNet focal-point generator
 - `requirements-face-focus.txt` — maintainer-only Python dependencies for face detection
 - `assets/women/`, `assets/trans-woman-man/`, `assets/trans-man-woman/`, `assets/men/` — portrait images
