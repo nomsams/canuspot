@@ -132,6 +132,9 @@ const state = {
   sound: true,
   reviewIndex: 0,
   attemptStartedAt: 0,
+  deviceHash: null,
+  imageMemory: {},
+  viewedInRound: new Set(),
 };
 
 const el = (selector) => document.querySelector(selector);
@@ -242,6 +245,96 @@ const localData = {
       previousScore: scores.at(-2) ?? null,
     };
   },
+  async getImageMemory(deviceHash, mode) {
+    const key = `spot-check:image-memory:${mode}`;
+    const stored = readLocalJSON(key, {});
+    const data = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+    if (Object.prototype.hasOwnProperty.call(data, deviceHash)) {
+      const memory = data[deviceHash];
+      return memory && typeof memory === "object" && !Array.isArray(memory) ? memory : {};
+    }
+
+    // Migrate the original seen-ID list and completed attempts once, without
+    // making people replay portraits they have already encountered.
+    const legacy = readLocalJSON(`spot-check:shown:${mode}`, {});
+    const shownIds = legacy && !Array.isArray(legacy) && Array.isArray(legacy[deviceHash])
+      ? legacy[deviceHash]
+      : [];
+    const memory = Object.fromEntries(shownIds.map((imageId) => [imageId, {
+      views: 1,
+      correct: 0,
+      wrong: 0,
+      lastCorrect: null,
+      lastViewedAt: null,
+      lastAnsweredAt: null,
+    }]));
+    const answerHistory = {};
+    readAttempts()
+      .filter((attempt) => attempt.anonymousId === deviceHash && attempt.mode === mode && Array.isArray(attempt.answers))
+      .forEach((attempt) => {
+        attempt.answers.forEach((answer) => {
+          if (!answer?.imageId) return;
+          const previous = answerHistory[answer.imageId] || { views: 0, correct: 0, wrong: 0 };
+          previous.views += 1;
+          previous.correct += answer.correct ? 1 : 0;
+          previous.wrong += answer.correct ? 0 : 1;
+          previous.lastCorrect = Boolean(answer.correct);
+          previous.lastViewedAt = attempt.createdAt || previous.lastViewedAt || null;
+          previous.lastAnsweredAt = attempt.createdAt || previous.lastAnsweredAt || null;
+          answerHistory[answer.imageId] = previous;
+        });
+      });
+    Object.entries(answerHistory).forEach(([imageId, history]) => {
+      memory[imageId] = {
+        views: Math.max(memory[imageId]?.views || 0, history.views),
+        correct: history.correct,
+        wrong: history.wrong,
+        lastCorrect: history.lastCorrect,
+        lastViewedAt: history.lastViewedAt,
+        lastAnsweredAt: history.lastAnsweredAt,
+      };
+    });
+    data[deviceHash] = memory;
+    writeLocalJSON(key, data);
+    return memory;
+  },
+  async recordImageView(deviceHash, mode, imageId, viewedAt) {
+    const key = `spot-check:image-memory:${mode}`;
+    const stored = readLocalJSON(key, {});
+    const data = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+    const memory = data[deviceHash] && typeof data[deviceHash] === "object" ? data[deviceHash] : {};
+    const previous = memory[imageId] || {};
+    memory[imageId] = {
+      views: (Number(previous.views) || 0) + 1,
+      correct: Number(previous.correct) || 0,
+      wrong: Number(previous.wrong) || 0,
+      lastCorrect: typeof previous.lastCorrect === "boolean" ? previous.lastCorrect : null,
+      lastViewedAt: viewedAt,
+      lastAnsweredAt: previous.lastAnsweredAt || null,
+    };
+    data[deviceHash] = memory;
+    writeLocalJSON(key, data);
+  },
+  async recordImageResults(deviceHash, mode, answers, answeredAt) {
+    const key = `spot-check:image-memory:${mode}`;
+    const stored = readLocalJSON(key, {});
+    const data = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
+    const memory = data[deviceHash] && typeof data[deviceHash] === "object" ? data[deviceHash] : {};
+    answers.forEach((answer) => {
+      if (!answer?.imageId) return;
+      const previous = memory[answer.imageId] || {};
+      memory[answer.imageId] = {
+        views: Math.max(1, Number(previous.views) || 0),
+        correct: (Number(previous.correct) || 0) + (answer.correct ? 1 : 0),
+        wrong: (Number(previous.wrong) || 0) + (answer.correct ? 0 : 1),
+        lastCorrect: Boolean(answer.correct),
+        lastViewedAt: previous.lastViewedAt || answeredAt,
+        lastAnsweredAt: answeredAt,
+      };
+    });
+    data[deviceHash] = memory;
+    writeLocalJSON(key, data);
+  },
   async getShownImages(deviceHash, mode) {
     const key = `spot-check:shown:${mode}`;
     const data = readLocalJSON(key, {});
@@ -265,6 +358,44 @@ function shuffle(items) {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+function normalizedMemoryEntry(entry = {}) {
+  return {
+    views: Number(entry.views) || 0,
+    correct: Number(entry.correct) || 0,
+    wrong: Number(entry.wrong) || 0,
+    lastCorrect: typeof entry.lastCorrect === "boolean" ? entry.lastCorrect : null,
+    lastViewedAt: entry.lastViewedAt || null,
+    lastAnsweredAt: entry.lastAnsweredAt || null,
+  };
+}
+
+function oldestFirst(cards, imageMemory, preferMoreMistakes = false) {
+  return shuffle(cards).sort((left, right) => {
+    const leftMemory = normalizedMemoryEntry(imageMemory[left.id]);
+    const rightMemory = normalizedMemoryEntry(imageMemory[right.id]);
+    const leftViewed = Date.parse(leftMemory.lastViewedAt || "") || 0;
+    const rightViewed = Date.parse(rightMemory.lastViewedAt || "") || 0;
+    if (leftViewed !== rightViewed) return leftViewed - rightViewed;
+    if (preferMoreMistakes && leftMemory.wrong !== rightMemory.wrong) {
+      return rightMemory.wrong - leftMemory.wrong;
+    }
+    return leftMemory.views - rightMemory.views;
+  });
+}
+
+function takeBalanced(cards, mode, choiceIds, limit) {
+  const queues = choiceIds.map((choiceId) =>
+    cards.filter((card) => card.labels[mode] === choiceId)
+  );
+  const selected = [];
+  while (selected.length < limit && queues.some((queue) => queue.length > 0)) {
+    queues.forEach((queue) => {
+      if (selected.length < limit && queue.length > 0) selected.push(queue.shift());
+    });
+  }
+  return selected;
 }
 
 function getCardFocus(card) {
@@ -296,24 +427,28 @@ function setPortraitPresentation(container, image, backdrop, card, alt) {
   if (image.complete) requestAnimationFrame(updateFit);
 }
 
-function buildBalancedDeck(cards, mode, limit, shownIds = []) {
+function buildBalancedDeck(cards, mode, limit, imageMemory = {}) {
   const choiceIds = MODES[mode].choices.map((choice) => choice.id);
-  const seen = new Set(shownIds);
-  const queues = choiceIds.map((choiceId) => {
-    const matchingCards = cards.filter((card) => card.labels[mode] === choiceId);
-    const freshCards = shuffle(matchingCards.filter((card) => !seen.has(card.id)));
-    const previousCards = shuffle(matchingCards.filter((card) => seen.has(card.id)));
-    return [...freshCards, ...previousCards];
-  });
-  if (queues.some((queue) => queue.length === 0)) {
+  if (choiceIds.some((choiceId) => !cards.some((card) => card.labels[mode] === choiceId))) {
     throw new Error("This mode needs at least one portrait for each answer.");
   }
 
-  const selected = [];
-  while (selected.length < limit && queues.some((queue) => queue.length > 0)) {
-    queues.forEach((queue) => {
-      if (selected.length < limit && queue.length > 0) selected.push(queue.shift());
-    });
+  const unseen = shuffle(cards.filter((card) => normalizedMemoryEntry(imageMemory[card.id]).views === 0));
+  const missed = oldestFirst(cards.filter((card) => {
+    const memory = normalizedMemoryEntry(imageMemory[card.id]);
+    return memory.views > 0 && memory.lastCorrect === false;
+  }), imageMemory, true);
+  const answeredOrSeen = oldestFirst(cards.filter((card) => {
+    const memory = normalizedMemoryEntry(imageMemory[card.id]);
+    return memory.views > 0 && memory.lastCorrect !== false;
+  }), imageMemory);
+
+  const selected = takeBalanced(unseen, mode, choiceIds, limit);
+  if (selected.length < limit) {
+    selected.push(...takeBalanced(missed, mode, choiceIds, limit - selected.length));
+  }
+  if (selected.length < limit) {
+    selected.push(...takeBalanced(answeredOrSeen, mode, choiceIds, limit - selected.length));
   }
   return shuffle(selected);
 }
@@ -411,28 +546,29 @@ async function startQuiz() {
     if (modeCards.length < 2) throw new Error("This mode needs at least two valid portrait entries.");
 
     const deviceHash = await anonymousDeviceHash();
-    let shownIds = [];
+    let imageMemory = {};
     try {
-      shownIds = await window.SpotCheckData.getShownImages(deviceHash, state.mode);
+      if (typeof window.SpotCheckData.getImageMemory === "function") {
+        imageMemory = await window.SpotCheckData.getImageMemory(deviceHash, state.mode);
+      } else if (typeof window.SpotCheckData.getShownImages === "function") {
+        const shownIds = await window.SpotCheckData.getShownImages(deviceHash, state.mode);
+        imageMemory = Object.fromEntries(shownIds.map((imageId) => [imageId, { views: 1 }]));
+      }
     } catch {
-      shownIds = [];
+      imageMemory = {};
     }
     const targetLength = Math.min(QUIZ_LENGTH, modeCards.length);
-    state.cards = buildBalancedDeck(modeCards, state.mode, targetLength, shownIds);
+    state.cards = buildBalancedDeck(modeCards, state.mode, targetLength, imageMemory);
     state.quizLength = state.cards.length;
     preloadCards(state.cards.slice(0, 3));
-
-    const newShownIds = [...new Set([...shownIds, ...state.cards.map((card) => card.id)])];
-    try {
-      await window.SpotCheckData.setShownImages(deviceHash, state.mode, newShownIds);
-    } catch {
-      // Portrait rotation is optional; a round can still run without local storage.
-    }
 
     state.index = 0;
     state.answers = [];
     state.locked = false;
     state.attemptStartedAt = Date.now();
+    state.deviceHash = deviceHash;
+    state.imageMemory = imageMemory && typeof imageMemory === "object" ? imageMemory : {};
+    state.viewedInRound = new Set();
     renderChoices();
     renderCard();
     showScreen("quiz");
@@ -440,6 +576,31 @@ async function startQuiz() {
     showToast(error.message || "The quiz could not start.");
   } finally {
     launchButtons.forEach((button) => { button.disabled = false; button.removeAttribute("aria-busy"); });
+  }
+}
+
+async function rememberCardView(card) {
+  if (!card?.id || !state.deviceHash || state.viewedInRound.has(card.id)) return;
+  state.viewedInRound.add(card.id);
+  const viewedAt = new Date().toISOString();
+  const previous = normalizedMemoryEntry(state.imageMemory[card.id]);
+  state.imageMemory[card.id] = {
+    ...previous,
+    views: previous.views + 1,
+    lastViewedAt: viewedAt,
+  };
+
+  try {
+    if (typeof window.SpotCheckData.recordImageView === "function") {
+      await window.SpotCheckData.recordImageView(state.deviceHash, state.mode, card.id, viewedAt);
+    } else if (typeof window.SpotCheckData.setShownImages === "function") {
+      const shownIds = Object.entries(state.imageMemory)
+        .filter(([, memory]) => normalizedMemoryEntry(memory).views > 0)
+        .map(([imageId]) => imageId);
+      await window.SpotCheckData.setShownImages(state.deviceHash, state.mode, shownIds);
+    }
+  } catch {
+    // Viewing and answering still work when browser storage is unavailable.
   }
 }
 
@@ -460,6 +621,7 @@ function renderCard() {
   el("#stamp-right").style.opacity = 0;
   el("[data-action='undo']").disabled = state.index === 0;
   active.classList.remove("correct", "incorrect");
+  void rememberCardView(card);
 
   if (state.index < state.cards.length - 1) {
     const nextCard = state.cards[state.index + 1];
@@ -567,20 +729,36 @@ async function finishQuiz() {
 
   if (score >= 70) launchConfetti(score);
 
+  const completedAt = new Date().toISOString();
+  let saveFailed = false;
   try {
-    const deviceHash = await anonymousDeviceHash();
+    const deviceHash = state.deviceHash || await anonymousDeviceHash();
     await window.SpotCheckData.recordAttempt({
       anonymousId: deviceHash,
       mode: state.mode,
       score,
       answers: state.answers.map(a => ({ imageId: a.imageId, choice: a.choice, correct: a.correct })),
-      createdAt: new Date().toISOString(),
+      createdAt: completedAt,
       durationMs: Math.max(0, Date.now() - state.attemptStartedAt),
       schemaVersion: 2,
     });
   } catch {
-    showToast("Score shown, but local saving was unavailable.");
+    saveFailed = true;
   }
+
+  try {
+    if (state.deviceHash && typeof window.SpotCheckData.recordImageResults === "function") {
+      await window.SpotCheckData.recordImageResults(
+        state.deviceHash,
+        state.mode,
+        state.answers.map(({ imageId, correct }) => ({ imageId, correct })),
+        completedAt,
+      );
+    }
+  } catch {
+    saveFailed = true;
+  }
+  if (saveFailed) showToast("Score shown, but some local history could not be saved.");
 
   await Promise.all([renderLeaderboard(), refreshStats(score)]);
 }

@@ -90,6 +90,7 @@ def main() -> None:
         key=lambda path: path.name.casefold(),
     )
     detected = 0
+    fallbacks: list[str] = []
     for path in paths:
         pil_image, cv_image = load_image(path)
         face = detect_primary_face(cv_image, detector)
@@ -99,6 +100,7 @@ def main() -> None:
             detected += 1
         else:
             focus_x = 50
+            fallbacks.append(path.name)
         # Keeping y at zero guarantees that cover cropping never removes the top edge.
         overrides[path.name] = {"x": focus_x, "y": 0}
         records.append({"filename": path.name, "image": pil_image, "face": face, "focus_x": focus_x})
@@ -107,6 +109,8 @@ def main() -> None:
     if args.preview:
         make_preview(records, args.preview.resolve())
     print(f"Detected a primary face in {detected}/{len(paths)} images; wrote {OVERRIDES_PATH.relative_to(PROJECT_ROOT)}.")
+    if fallbacks:
+        print(f"Centered fallback (no primary face detected): {', '.join(fallbacks)}")
 
 
 if __name__ == "__main__":

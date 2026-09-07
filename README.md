@@ -95,7 +95,7 @@ Only use images you own or have explicit permission to publish. If real people a
 - **Lady / Ladyboy** — Guess between the supplied `lady…` and `ldb…` image groups
 - **Man / Trans man** — Available when both matching manual image groups have content
 
-Toggle modes using the header button. A mode without at least one image for each answer is hidden automatically. A round only includes cards whose category and answer both belong to that mode, and the deck alternates between the two answer groups before shuffling so one label cannot dominate the quiz.
+Toggle modes using the header button. A mode without at least one image for each answer is hidden automatically. A round only includes cards whose category and answer both belong to that mode. The browser prioritizes portraits the visitor has never actually viewed; only after that pool is exhausted does it recycle missed portraits, followed by the least-recently viewed correct ones. Selection alternates between answer groups when both have eligible cards, while never repeating a portrait inside one round.
 
 ## Original soundtrack
 
@@ -132,9 +132,11 @@ The UI calls a small adapter exposed as `window.SpotCheckData`:
 - `recordAttempt(attempt)` — saves an attempt
 - `getLeaderboard(mode)` — returns top scores per device for a mode
 - `getStats(mode)` — returns plays, best, average, streak, and recent scores
-- `getShownImages(deviceHash, mode)` / `setShownImages(...)` — rotate portraits between rounds
+- `getImageMemory(deviceHash, mode)` — returns per-portrait view and answer history
+- `recordImageView(...)` — records a portrait only when its card is actually displayed
+- `recordImageResults(...)` — records the completed round's correct and missed portraits
 
-The current adapter stores the latest 100 attempts in the browser's `localStorage`. It creates a random local device ID and stores its SHA-256 digest with each attempt. It does **not** collect IP addresses.
+The current adapter stores the latest 100 attempts plus compact per-portrait memory in the browser's `localStorage`. Existing `spot-check:shown:*` data is migrated automatically. It creates a random local device ID and stores its SHA-256 digest with each attempt. It does **not** collect IP addresses.
 
 For Supabase, replace the adapter with calls to an Edge Function. Recommended tables: `images`, `quiz_attempts`, `image_answers`, using opaque UUIDs. Keep the service-role key server-side, enable RLS on every public table, allow clients to read only published image metadata, and insert attempts through a rate-limited Edge Function. If you have a legitimate reason to deduplicate by IP, hash it only inside the Edge Function with a rotating server secret (HMAC), retain it briefly, disclose it in the privacy notice, and never expose raw IPs or a public unsalted hash. A local random identifier is the more privacy-preserving default.
 
