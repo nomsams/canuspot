@@ -1,6 +1,6 @@
 # Spot Check
 
-A dependency-free, mobile-first swipe quiz for GitHub Pages. It presents up to 10 balanced portrait cards, supports horizontal drag plus explicit choice buttons, calculates a score, assigns a humorous level, and shows a red–orange–green result meter.
+A dependency-free, mobile-first swipe quiz for GitHub Pages. It presents up to 10 balanced portrait cards, supports horizontal drag plus explicit choice buttons, and offers focal-point pinch zoom capped at 1.8×. It calculates a score, assigns a humorous level, and shows a red–orange–green result meter.
 
 The quiz also includes answer undo, keyboard controls, answer review with swipe navigation, persistent per-mode personal stats, daily streaks, a monkey benchmark, and a device-local leaderboard. Rounds use only supplied photo assets and automatically grow to 10 when enough assets are available.
 

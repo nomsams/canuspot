@@ -1,5 +1,8 @@
 const QUIZ_LENGTH = 10;
+const MAX_IMAGE_ZOOM = 1.8;
 let interfaceBeatMs = 60000 / 74;
+let quizPinchZoom;
+let reviewPinchZoom;
 
 const MODES = {
   woman_trans: {
@@ -424,6 +427,7 @@ function renderCard() {
   if (!card) return;
   const active = el("#active-card");
   const behind = el(".card-behind");
+  quizPinchZoom?.reset();
   active.className = "swipe-card card-active";
   active.style.cssText = "";
   el("#card-image").src = card.src;
@@ -673,13 +677,26 @@ function setupSwipe() {
   const card = el("#active-card");
   let startX = 0, startY = 0, dx = 0, dragging = false;
 
+  const resetDrag = () => {
+    dragging = false;
+    dx = 0;
+    card.classList.remove("is-dragging");
+    card.style.transform = "";
+    el("#stamp-left").style.opacity = 0;
+    el("#stamp-right").style.opacity = 0;
+  };
+
   card.addEventListener("pointerdown", (event) => {
-    if (state.locked || event.clientX < 28 || event.clientX > window.innerWidth - 28) return;
+    if (state.locked || card.classList.contains("is-pinching") || event.clientX < 28 || event.clientX > window.innerWidth - 28) return;
     startX = event.clientX; startY = event.clientY; dx = 0; dragging = true;
     card.classList.add("is-dragging"); card.setPointerCapture(event.pointerId);
   });
   card.addEventListener("pointermove", (event) => {
     if (!dragging) return;
+    if (card.classList.contains("is-pinching")) {
+      resetDrag();
+      return;
+    }
     dx = event.clientX - startX;
     const dy = event.clientY - startY;
     if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 12) { dragging = false; card.classList.remove("is-dragging"); card.style.transform = ""; return; }
@@ -689,6 +706,10 @@ function setupSwipe() {
   });
   const end = () => {
     if (!dragging) return;
+    if (card.classList.contains("is-pinching")) {
+      resetDrag();
+      return;
+    }
     dragging = false; card.classList.remove("is-dragging");
     if (Math.abs(dx) > 82) {
       const choiceIndex = dx > 0 ? 1 : 0;
@@ -699,6 +720,91 @@ function setupSwipe() {
     }
   };
   card.addEventListener("pointerup", end); card.addEventListener("pointercancel", end);
+}
+
+function setupPinchZoom(containerSelector, imageSelector) {
+  const container = el(containerSelector);
+  const image = el(imageSelector);
+  const touchPointers = new Map();
+  let zoom = 1;
+  let startingZoom = 1;
+  let startingDistance = 0;
+  let pinching = false;
+
+  const pointerPair = () => Array.from(touchPointers.values()).slice(0, 2);
+  const distanceBetween = ([first, second]) => Math.hypot(second.x - first.x, second.y - first.y);
+  const applyZoom = (nextZoom) => {
+    zoom = Math.max(1, Math.min(MAX_IMAGE_ZOOM, nextZoom));
+    image.style.setProperty("--image-zoom", zoom.toFixed(3));
+    container.classList.toggle("is-zoomed", zoom > 1.005);
+  };
+  const stopPinching = () => {
+    pinching = false;
+    container.classList.remove("is-pinching");
+  };
+  const reset = () => {
+    touchPointers.clear();
+    stopPinching();
+    zoom = 1;
+    startingZoom = 1;
+    startingDistance = 0;
+    image.style.setProperty("--image-zoom", "1");
+    image.style.setProperty("--zoom-origin-x", "50%");
+    image.style.setProperty("--zoom-origin-y", "50%");
+    container.classList.remove("is-zoomed");
+  };
+
+  container.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "touch") return;
+    if (touchPointers.size >= 2) return;
+    touchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touchPointers.size < 2) return;
+
+    const pair = pointerPair();
+    startingDistance = distanceBetween(pair);
+    if (!startingDistance) return;
+    startingZoom = zoom;
+    pinching = true;
+    container.classList.add("is-pinching");
+    container.classList.remove("is-dragging");
+    container.style.transform = "";
+
+    if (container.id === "active-card") {
+      el("#stamp-left").style.opacity = 0;
+      el("#stamp-right").style.opacity = 0;
+    }
+
+    if (zoom <= 1.005) {
+      const bounds = container.getBoundingClientRect();
+      const midpointX = (pair[0].x + pair[1].x) / 2;
+      const midpointY = (pair[0].y + pair[1].y) / 2;
+      const originX = Math.max(0, Math.min(100, ((midpointX - bounds.left) / bounds.width) * 100));
+      const originY = Math.max(0, Math.min(100, ((midpointY - bounds.top) / bounds.height) * 100));
+      image.style.setProperty("--zoom-origin-x", `${originX.toFixed(1)}%`);
+      image.style.setProperty("--zoom-origin-y", `${originY.toFixed(1)}%`);
+    }
+  });
+
+  container.addEventListener("pointermove", (event) => {
+    if (!touchPointers.has(event.pointerId)) return;
+    touchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (!pinching || touchPointers.size < 2 || !startingDistance) return;
+    event.preventDefault();
+    applyZoom(startingZoom * (distanceBetween(pointerPair()) / startingDistance));
+  }, { passive: false });
+
+  const releasePointer = (event) => {
+    if (!touchPointers.has(event.pointerId)) return;
+    touchPointers.delete(event.pointerId);
+    if (touchPointers.size < 2) stopPinching();
+  };
+
+  container.addEventListener("pointerup", releasePointer);
+  container.addEventListener("pointercancel", releasePointer);
+  container.addEventListener("lostpointercapture", releasePointer);
+
+  reset();
+  return { reset };
 }
 
 function haptic(type) {
@@ -878,6 +984,7 @@ function openReviewDetail(index) {
   el("#detail-nav").textContent = `${index + 1} / ${state.answers.length}`;
   el("[data-action='review-prev']").disabled = index === 0;
   el("[data-action='review-next']").disabled = index === state.answers.length - 1;
+  reviewPinchZoom?.reset();
   el("#detail-card").style.transform = "";
 
   if (!el(".review-detail-screen").classList.contains("is-active")) showScreen("review-detail");
@@ -894,17 +1001,33 @@ function setupSwipeReviewDetail() {
   const detailCard = el("#detail-card");
   let startX = 0, dx = 0, dragging = false;
 
+  const resetDrag = () => {
+    dragging = false;
+    dx = 0;
+    detailCard.classList.remove("is-dragging");
+    detailCard.style.transform = "";
+  };
+
   detailCard.addEventListener("pointerdown", (event) => {
+    if (detailCard.classList.contains("is-pinching")) return;
     startX = event.clientX; dx = 0; dragging = true;
     detailCard.classList.add("is-dragging"); detailCard.setPointerCapture(event.pointerId);
   });
   detailCard.addEventListener("pointermove", (event) => {
     if (!dragging) return;
+    if (detailCard.classList.contains("is-pinching")) {
+      resetDrag();
+      return;
+    }
     dx = event.clientX - startX;
     detailCard.style.transform = `translateX(${dx}px)`;
   });
   const end = () => {
     if (!dragging) return;
+    if (detailCard.classList.contains("is-pinching")) {
+      resetDrag();
+      return;
+    }
     dragging = false; detailCard.classList.remove("is-dragging");
     if (Math.abs(dx) > 60) {
       navigateReviewDetail(dx > 0 ? -1 : 1);
@@ -969,6 +1092,8 @@ document.addEventListener("keydown", handleKeydown);
 
 setupSwipe();
 setupSwipeReviewDetail();
+quizPinchZoom = setupPinchZoom("#active-card", "#card-image");
+reviewPinchZoom = setupPinchZoom("#detail-card", "#detail-image");
 
 const savedSound = readLocalValue("spot-check:sound");
 state.sound = savedSound === null ? true : savedSound === "true";
