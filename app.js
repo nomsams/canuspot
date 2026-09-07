@@ -83,7 +83,7 @@ const state = {
   index: 0,
   answers: [],
   locked: false,
-  sound: false,
+  sound: true,
   reviewIndex: 0,
   attemptStartedAt: 0,
 };
@@ -278,6 +278,8 @@ function showScreen(name) {
   const modeButton = el("[data-action='toggle-mode']");
   if (modeButton) modeButton.disabled = name !== "intro" || state.availableModes.length < 2;
   window.scrollTo({ top: 0, behavior: "smooth" });
+  const musicScene = name === "intro" ? "waiting" : name === "quiz" ? "battle" : "results";
+  window.SpotCheckMusic?.setScene(musicScene);
   if (name === "results") triggerResultsAnimations();
   if (name === "review") renderReview();
 }
@@ -655,14 +657,17 @@ function haptic(type) {
 
 function blip(success) {
   if (!state.sound) return;
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return;
-  const context = new AudioContextClass();
-  const oscillator = context.createOscillator(); const gain = context.createGain();
-  oscillator.frequency.value = success ? 520 : 260; gain.gain.setValueAtTime(.04, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(.001, context.currentTime + .12);
-  oscillator.connect(gain).connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + .12);
-  oscillator.addEventListener("ended", () => context.close(), { once: true });
+  window.SpotCheckMusic?.playEffect(success);
+}
+
+function updateSoundButton() {
+  const button = el("[data-action='sound']");
+  if (!button) return;
+  button.setAttribute("aria-pressed", String(state.sound));
+  button.setAttribute("aria-label", state.sound ? "Turn music off" : "Turn music on");
+  button.classList.toggle("is-on", state.sound);
+  button.textContent = state.sound ? "♫" : "♪";
+  button.title = state.sound ? "Music on" : "Music off";
 }
 
 async function shareScore() {
@@ -876,9 +881,10 @@ document.addEventListener("click", (event) => {
   if (action === "sound") {
     state.sound = !state.sound;
     writeLocalValue("spot-check:sound", String(state.sound));
-    const button = el("[data-action='sound']");
-    button.setAttribute("aria-pressed", String(state.sound));
-    button.textContent = state.sound ? "♫" : "♪";
+    updateSoundButton();
+    window.SpotCheckMusic?.setEnabled(state.sound);
+    if (state.sound) window.SpotCheckMusic?.unlock().catch(() => {});
+    showToast(state.sound ? "Music on." : "Music off.");
   }
   if (action === "review") showScreen("review");
   if (action === "undo") undoLastChoice();
@@ -894,14 +900,19 @@ setupSwipe();
 setupSwipeReviewDetail();
 
 const savedSound = readLocalValue("spot-check:sound");
-if (savedSound !== null) {
-  state.sound = savedSound === "true";
+state.sound = savedSound === null ? true : savedSound === "true";
+updateSoundButton();
+window.SpotCheckMusic?.setEnabled(state.sound);
+
+window.addEventListener("spotcheckmusicchange", (event) => {
+  if (!state.sound) return;
   const button = el("[data-action='sound']");
-  if (button) {
-    button.setAttribute("aria-pressed", String(state.sound));
-    button.textContent = state.sound ? "♫" : "♪";
-  }
-}
+  if (button && event.detail?.title) button.title = `Music on · ${event.detail.title}`;
+});
+
+document.addEventListener("pointerdown", () => {
+  if (state.sound) window.SpotCheckMusic?.unlock().catch(() => {});
+}, { once: true, passive: true });
 
 showScreen("intro");
 

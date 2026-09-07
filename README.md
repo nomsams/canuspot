@@ -97,6 +97,16 @@ Only use images you own or have explicit permission to publish. If real people a
 
 Toggle modes using the header button. A mode without at least one image for each answer is hidden automatically. A round only includes cards whose category and answer both belong to that mode, and the deck alternates between the two answer groups before shuffling so one label cannot dominate the quiz.
 
+## Original soundtrack
+
+`music.js` contains five original, procedurally synthesized tunes with a quiet retro-fantasy character and Thai-inspired pentatonic ornamentation. It uses the browser's Web Audio API—there are no copied melodies, recordings, samples, external music requests, or audio files to host.
+
+- Waiting screen: **Lantern Courtyard** and **Bamboo Map** alternate
+- Quiz screen: **Silk Road Skirmish** and **Temple Steps** alternate
+- Results and review screens: **Golden Score** loops
+
+Music is enabled by default, begins after the visitor's first interaction to respect browser autoplay rules, crossfades when the screen changes, and loops indefinitely. The header music button mutes both the score and answer sounds; that preference is saved locally.
+
 ## GitHub Pages
 
 The production site is entirely static and runs at `https://nomsams.github.io/canuspot/`:
@@ -127,6 +137,7 @@ For Supabase, replace the adapter with calls to an Edge Function. Recommended ta
 - `index.html` — accessible app structure
 - `styles.css` — responsive mobile/desktop UI and animations
 - `app.js` — quiz state, swipe gestures, scoring, local adapter, and sharing
+- `music.js` — five-scene-aware procedural Web Audio compositions
 - `assets/manifest.json` — static image metadata
 - `assets/unsorted/` — quick-import source images named `lady…` or `ldb…`
 - `assets/focus-overrides.json` — optional per-file crop adjustments
