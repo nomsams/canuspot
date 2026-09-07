@@ -39,18 +39,35 @@ const SCORE_COMMENTS = {
     "Perfect. The monkey has left the chat.",
     "100%. No notes—only suspiciously good eyesight.",
     "A clean sweep. Even the monkey is impressed.",
+    "Bangkok blinked first.",
+    "Flawless. Customs waves you through on reputation alone.",
+    "You could probably give the monkey directions.",
+    "The street signs are asking you for directions now.",
+    "Perfect score. Try not to become unbearable about it.",
   ],
   high: [
     "So close—can you make it a clean 100%?",
     "Sharp. Can you come even closer to 100%?",
     "The monkey is safely behind you. Keep climbing.",
     "Excellent eyes. One more run for perfection?",
+    "Bangkok survival odds: surprisingly respectable.",
+    "You may roam Bangkok without a chaperone. Probably.",
+    "One mistake away from insufferable. Go again.",
+    "The monkey has quietly deleted your number.",
+    "Very sharp. Annoyingly sharp.",
   ],
   aboveChance: [
     "You beat the monkey. It was closer than it looked.",
     "Above chance. Now make the monkey nervous.",
     "Humanity keeps a narrow lead.",
     "Solid. Can you push this closer to 100%?",
+    "You would probably survive Bangkok. Keep your phone charged.",
+    "Bangkok privileges: provisionally approved.",
+    "Decent—but do not start acting like a local.",
+    "The monkey has stopped laughing, but not for long.",
+    "You have earned cautious independence.",
+    "Competent enough to get lost with confidence.",
+    "Not bad. Your tour guide can take lunch.",
   ],
   tied: [
     "A perfect tie with the monkey. Awkward.",
@@ -58,6 +75,13 @@ const SCORE_COMMENTS = {
     "Dead heat. The monkey wants a rematch.",
     "Exactly 50%. Humanity is asking for another attempt.",
     "Coin-flip territory—the monkey looks comfortable here.",
+    "Bangkok would eat this confidence for breakfast.",
+    "Book the flight, but keep a responsible adult on speed dial.",
+    "Fifty-fifty: also your odds of finding the hotel again.",
+    "The monkey says this could have been an email.",
+    "Your instincts flipped a coin and called it expertise.",
+    "Bangkok status: chaperone recommended.",
+    "You and chance are officially business partners.",
   ],
   belowChance: [
     "We were told humans are smarter than monkeys.",
@@ -66,12 +90,32 @@ const SCORE_COMMENTS = {
     "The monkey has started giving you hints.",
     "Humanity would like this score kept off the record.",
     "The banana-powered opponent is currently ahead.",
+    "You would not fare well in Bangkok.",
+    "Make sure an adult accompanies you to Bangkok—you clearly will not make it alone.",
+    "Your Bangkok itinerary now includes adult supervision.",
+    "The monkey just volunteered to chaperone you through Bangkok.",
+    "Even the coin is embarrassed for you.",
+    "You did not read the room; the room read you.",
+    "Confidence: elite. Accuracy: still at baggage claim.",
+    "Bangkok would send you home with a name tag.",
+    "The monkey is pricing flights just to supervise you.",
+    "This score needs a helmet and an emergency contact.",
   ],
   veryLow: [
     "The monkey is now running the tutorial.",
     "At this point, ask the monkey for coaching.",
     "A brave attack on statistical probability.",
     "The good news: improvement is almost guaranteed.",
+    "Do not attempt Bangkok without a guide, a map, and the monkey.",
+    "At this score, Bangkok is not a holiday; it is a rescue mission.",
+    "Please remain where you are. A responsible adult has been notified.",
+    "The monkey has taken custody of the itinerary.",
+    "You could get lost in a one-way hallway.",
+    "Even random guessing wants a formal apology.",
+    "Your instincts have entered witness protection.",
+    "Bangkok called. It said absolutely not.",
+    "The tutorial would like to start over.",
+    "You are now statistically impressive for the wrong reason.",
   ],
 };
 
@@ -443,8 +487,14 @@ function undoLastChoice() {
   haptic("tap");
 }
 
+let lastScoreComment = "";
+
 function pickComment(comments) {
-  return comments[Math.floor(Math.random() * comments.length)];
+  const freshComments = comments.filter((comment) => comment !== lastScoreComment);
+  const choices = freshComments.length > 0 ? freshComments : comments;
+  const comment = choices[Math.floor(Math.random() * choices.length)];
+  lastScoreComment = comment;
+  return comment;
 }
 
 function getScoreComment(score) {
