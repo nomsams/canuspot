@@ -3,6 +3,7 @@
 
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   const SCALE = [0, 3, 5, 7, 10];
+  const BRIGHT_SCALE = [0, 2, 4, 7, 9];
   const PHRASES = {
     lanternA: [0, 2, 4, 2, 3, 2, 0, null, 2, 4, 5, 4, 2, 0, -1, null],
     lanternB: [0, 2, 4, 5, 4, 2, 3, 2, 0, -1, 0, 2, 0, null, null, null],
@@ -45,9 +46,12 @@
       title: "Silk Road Skirmish",
       bpm: 98,
       root: 62,
+      scale: BRIGHT_SCALE,
       voice: "pluck",
       lead: melody("silkA", "silkB", "silkC", "silkB"),
       bass: [0, 2, 0, -1, 0, 3, 2, 0],
+      bassPulse: [0, 0, 2, 2, 0, -1, 0, 2, 3, 2, 0, -1, 0, 2, 4, 2],
+      arpeggio: [0, 2, 4, 7, 4, 2, 3, 5, 7, 5, 3, 2, 0, 2, 4, 5],
       ornaments: [6, 14],
       lively: true,
     },
@@ -55,9 +59,12 @@
       title: "Temple Steps",
       bpm: 106,
       root: 60,
+      scale: BRIGHT_SCALE,
       voice: "reed",
       lead: melody("templeA", "templeB", "templeC", "templeB"),
       bass: [0, 0, 2, -1, 0, 3, 2, 0],
+      bassPulse: [0, 2, 0, 2, 3, 2, 0, -1, 0, 2, 4, 3, 2, 0, -1, 2],
+      arpeggio: [0, 2, 4, 5, 7, 5, 4, 2, 3, 5, 7, 9, 7, 5, 4, 2],
       ornaments: [4, 8, 12],
       lively: true,
     },
@@ -97,10 +104,10 @@
     return 440 * (2 ** ((note - 69) / 12));
   }
 
-  function scaleNote(root, degree) {
-    const octave = Math.floor(degree / SCALE.length);
-    const index = ((degree % SCALE.length) + SCALE.length) % SCALE.length;
-    return root + octave * 12 + SCALE[index];
+  function scaleNote(root, degree, scale = SCALE) {
+    const octave = Math.floor(degree / scale.length);
+    const index = ((degree % scale.length) + scale.length) % scale.length;
+    return root + octave * 12 + scale[index];
   }
 
   function createContext() {
@@ -218,15 +225,16 @@
   function scheduleTuneCycle(tune, start, destination) {
     const beat = 60 / tune.bpm;
     const leadStep = beat / 2;
+    const tuneScale = tune.scale || SCALE;
     tune.lead.forEach((degree, index) => {
       if (degree === null) return;
       const noteStart = start + index * leadStep;
       const ornament = tune.ornaments.includes(index % 16);
       if (ornament) {
-        scheduleTone(scaleNote(tune.root, degree - 1), noteStart, leadStep * 0.18, 0.09, "pluck", destination, -0.12);
+        scheduleTone(scaleNote(tune.root, degree - 1, tuneScale), noteStart, leadStep * 0.18, 0.09, "pluck", destination, -0.12);
       }
       scheduleTone(
-        scaleNote(tune.root, degree),
+        scaleNote(tune.root, degree, tuneScale),
         noteStart + (ornament ? leadStep * 0.16 : 0),
         leadStep * (tune.voice === "bell" ? 1.5 : 0.78),
         tune.voice === "bell" ? 0.14 : 0.11,
@@ -237,8 +245,41 @@
     });
 
     tune.bass.forEach((degree, index) => {
-      scheduleTone(scaleNote(tune.root - 24, degree), start + index * beat * 4, beat * 3.4, 0.12, "bass", destination, -0.08);
+      const velocity = tune.lively ? 0.09 : 0.12;
+      scheduleTone(scaleNote(tune.root - 24, degree, tuneScale), start + index * beat * 4, beat * 3.4, velocity, "bass", destination, -0.08);
     });
+
+    if (tune.bassPulse) {
+      tune.bassPulse.forEach((degree, index) => {
+        const velocity = index % 4 === 0 ? 0.105 : 0.078;
+        scheduleTone(
+          scaleNote(tune.root - 24, degree, tuneScale),
+          start + index * beat * 2,
+          beat * 1.35,
+          velocity,
+          "bass",
+          destination,
+          -0.18,
+        );
+      });
+    }
+
+    if (tune.arpeggio) {
+      const arpeggioStep = beat / 2;
+      for (let step = 0; step < 64; step += 1) {
+        const degree = tune.arpeggio[step % tune.arpeggio.length];
+        const accent = step % 8 === 0 ? 0.052 : 0.036;
+        scheduleTone(
+          scaleNote(tune.root + 12, degree, tuneScale),
+          start + step * arpeggioStep + beat * 0.25,
+          beat * 0.21,
+          accent,
+          "pluck",
+          destination,
+          step % 2 === 0 ? -0.22 : 0.22,
+        );
+      }
+    }
 
     for (let beatIndex = 0; beatIndex < 32; beatIndex += 1) {
       const beatStart = start + beatIndex * beat;
@@ -247,7 +288,7 @@
         scheduleWoodClick(beatStart, tune.lively ? 0.035 : 0.024, destination);
       }
       if (beatIndex % 8 === 0) {
-        scheduleTone(scaleNote(tune.root - 12, tune.bass[beatIndex / 4] ?? 0), beatStart, beat * 2.6, 0.06, "bell", destination, 0.2);
+        scheduleTone(scaleNote(tune.root - 12, tune.bass[beatIndex / 4] ?? 0, tuneScale), beatStart, beat * 2.6, 0.06, "bell", destination, 0.2);
       }
     }
     return beat * 32;

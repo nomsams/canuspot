@@ -107,6 +107,8 @@ Toggle modes using the header button. A mode without at least one image for each
 
 Each scene keeps its selected tune and loops it indefinitely instead of switching tracks mid-screen. Tunes are scheduled in longer two-cycle passes, and only rotate when the visitor later returns to that scene. Their BPM is exposed to the interface so the intro word reel, card timing, score reveals, meter, monkey, and music indicator move on beat. Music is enabled by default, begins after the visitor's first interaction to respect browser autoplay rules, and crossfades when the screen changes. The header music button mutes both the score and answer sounds; that preference is saved locally.
 
+The two quiz themes use a brighter pentatonic tuning, interlocking offbeat plucked arpeggios, and a separate two-beat bass pulse to give the battle phase more lift and forward motion without overpowering the portraits.
+
 ## GitHub Pages
 
 The production site is entirely static and runs at `https://nomsams.github.io/canuspot/`:
