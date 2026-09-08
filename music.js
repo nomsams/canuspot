@@ -36,6 +36,7 @@
   let currentTitle = null;
   let transitionToken = 0;
   let transitionFrame = null;
+  let synchronizedEpoch = null;
 
   const versioned = (src) => `${src}?v=${AUDIO_VERSION}`;
 
@@ -95,6 +96,16 @@
     activeTuneKey = null;
   }
 
+  function alignToEpoch(epochMs = synchronizedEpoch) {
+    if (!activeAudio || activeAudio.paused || !Number.isFinite(epochMs) || !Number.isFinite(activeAudio.duration) || activeAudio.duration <= 0) return false;
+    const elapsedSeconds = Math.max(0, (Date.now() - epochMs) / 1000);
+    const desired = elapsedSeconds % activeAudio.duration;
+    const directDrift = Math.abs(activeAudio.currentTime - desired);
+    const wrappedDrift = Math.min(directDrift, Math.abs(activeAudio.duration - directDrift));
+    if (wrappedDrift > 0.28) activeAudio.currentTime = desired;
+    return true;
+  }
+
   async function transitionToSelected() {
     if (!enabled || !unlocked || !selectedTuneKey || typeof Audio !== "function") return false;
     const tuneKey = selectedTuneKey;
@@ -136,6 +147,7 @@
     activeAudio = nextAudio;
     activeTuneKey = tuneKey;
     currentTitle = tune.title;
+    alignToEpoch();
     announceTune(tune, "playing");
 
     const startedAt = performance.now();
@@ -172,12 +184,34 @@
 
   function setScene(nextScene) {
     if (!PLAYLISTS[nextScene]) return;
+    synchronizedEpoch = null;
     const changed = scene !== nextScene || !selectedTuneKey;
     if (changed) {
       scene = nextScene;
       selectTuneForScene(nextScene);
     }
     if (changed && enabled && unlocked) transitionToSelected().catch(() => {});
+  }
+
+  function setSynchronizedScene(nextScene, tuneIndex = 0, epochMs = Date.now()) {
+    if (!PLAYLISTS[nextScene]) return;
+    const playlist = PLAYLISTS[nextScene];
+    const position = Math.abs(Math.trunc(Number(tuneIndex) || 0)) % playlist.length;
+    const tuneKey = playlist[position];
+    const changed = scene !== nextScene || selectedTuneKey !== tuneKey;
+    scene = nextScene;
+    selectedTuneKey = tuneKey;
+    currentTitle = TRACKS[tuneKey].title;
+    synchronizedEpoch = Number(epochMs);
+    getTrack(tuneKey).load();
+    announceTune(TRACKS[tuneKey], "selected");
+    if (changed && enabled && unlocked) transitionToSelected().catch(() => {});
+    else alignToEpoch();
+  }
+
+  function syncToEpoch(epochMs) {
+    synchronizedEpoch = Number(epochMs);
+    return alignToEpoch();
   }
 
   function setEnabled(nextEnabled) {
@@ -231,5 +265,5 @@
     }
   });
 
-  window.SpotCheckMusic = { getStatus, playEffect, setEnabled, setScene, unlock };
+  window.SpotCheckMusic = { getStatus, playEffect, setEnabled, setScene, setSynchronizedScene, syncToEpoch, unlock };
 })();

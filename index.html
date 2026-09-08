@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
     <script src="music.js" defer></script>
+    <script src="battle.js?v=20260908-4" defer></script>
     <script src="app.js" defer></script>
   </head>
   <body>
@@ -48,6 +49,7 @@
                 <span><strong id="intro-plays">0</strong> plays</span>
               </div>
               <button class="start-button" type="button" data-action="start">Start <span aria-hidden="true">→</span></button>
+              <button class="battle-launch" type="button" data-battle-action="open"><span aria-hidden="true">⚔</span> Battle mode <small>Live multiplayer</small></button>
             </div>
           </div>
           <p class="consent-note">A perception quiz using creator-labelled portraits. Not a claim about anyone's identity. No personal data collected.</p>
@@ -165,7 +167,155 @@
           </article>
           <p class="detail-hint">Swipe to navigate, pinch to zoom up to 1.8×, or use the buttons.</p>
         </section>
+
+        <section class="screen battle-screen battle-lobby-screen" data-screen="battle-lobby" aria-labelledby="battle-lobby-title">
+          <h1 class="sr-only" id="battle-lobby-title">Live Battle room</h1>
+          <div class="battle-topbar">
+            <span class="battle-connection" id="battle-connection">Offline</span>
+            <span class="battle-kicker">⚔ Live Battle</span>
+            <button class="battle-icon-button" type="button" data-battle-action="leave" aria-label="Leave battle">×</button>
+          </div>
+
+          <div class="battle-entry" id="battle-entry">
+            <p class="eyebrow">Live · browser to browser</p>
+            <h2>Creating your room…</h2>
+            <p>Invite. Play. Take the crown.</p>
+          </div>
+
+          <div class="battle-room" id="battle-room" hidden>
+            <section class="battle-room-head">
+              <div><p class="eyebrow">Room code</p><h1 id="battle-room-code">------</h1></div>
+              <div class="battle-role" id="battle-role">Player</div>
+            </section>
+
+            <section class="battle-share-card" id="battle-share-card">
+              <canvas id="battle-qr" width="232" height="232" aria-label="Battle invite QR code"></canvas>
+              <p><strong>Scan to join.</strong> Everyone is ready automatically.</p>
+              <div class="battle-share-actions">
+                <button type="button" data-battle-action="copy-link">Copy link</button>
+                <button type="button" data-battle-action="share-link">Share link</button>
+                <button type="button" data-battle-action="scan">Scan QR</button>
+              </div>
+              <details class="battle-join-another">
+                <summary>Join with a link instead</summary>
+                <div class="battle-link-join">
+                  <label for="battle-link-input">Invite link</label>
+                  <div><input id="battle-link-input" type="url" inputmode="url" autocomplete="off" placeholder="https://nomsams.github.io/canuspot/#battle=…" /><button type="button" data-battle-action="join-link">Join</button></div>
+                  <button class="battle-paste" type="button" data-battle-action="paste-link">Paste from clipboard</button>
+                </div>
+              </details>
+            </section>
+
+            <section class="battle-panel battle-identity-panel">
+              <label for="battle-name">Display name</label>
+              <div><input id="battle-name" maxlength="24" autocomplete="nickname" /><button type="button" data-battle-action="save-name">Save</button></div>
+            </section>
+
+            <section class="battle-panel battle-settings" id="battle-settings">
+              <div class="battle-section-title"><div><p class="eyebrow">Host controls</p><h2>Battle setup</h2></div><span id="battle-settings-lock">Editable</span></div>
+              <div class="battle-setting-row">
+                <div><strong>Cards</strong><small>Same order for everyone</small></div>
+                <div class="battle-stepper"><button type="button" data-battle-action="cards-down" aria-label="Decrease cards">−</button><output id="battle-card-count">20</output><button type="button" data-battle-action="cards-up" aria-label="Increase cards">＋</button></div>
+              </div>
+              <div class="battle-setting-row battle-timer-setting">
+                <div><strong>Timer</strong><small>One shared finish line</small></div>
+                <select id="battle-timer" data-battle-action="timer">
+                  <option value="30">30 seconds</option>
+                  <option value="60">1 minute</option>
+                  <option value="120">2 minutes</option>
+                  <option value="180" selected>3 minutes</option>
+                  <option value="300">5 minutes</option>
+                  <option value="custom">Custom…</option>
+                </select>
+              </div>
+              <div class="battle-custom-timer" id="battle-custom-timer" hidden><label for="battle-custom-minutes">Minutes</label><input id="battle-custom-minutes" type="number" min="1" max="60" step="1" value="8" /><button type="button" data-battle-action="custom-timer">Set</button></div>
+              <ul class="battle-rules">
+                <li>Correct answer: <strong>10 points</strong></li>
+                <li>Fast answer: <strong>up to +5</strong></li>
+                <li>Maximum: <strong>15 per card</strong></li>
+              </ul>
+            </section>
+
+            <section class="battle-panel battle-players-panel">
+              <div class="battle-section-title"><div><p class="eyebrow">Party</p><h2><span id="battle-player-count">1</span> <span id="battle-player-label">player</span></h2></div><span id="battle-vice-label">Finding vice host…</span></div>
+              <ul class="battle-player-list" id="battle-player-list"></ul>
+            </section>
+
+            <section class="battle-panel battle-chat-panel">
+              <div class="battle-section-title"><div><p class="eyebrow">Party chat</p><h2>Talk tactics</h2></div><span>P2P</span></div>
+              <ol class="battle-chat-log" id="battle-chat-log" aria-live="polite"></ol>
+              <form class="battle-chat-form" id="battle-chat-form"><input id="battle-chat-input" maxlength="220" autocomplete="off" placeholder="Say something…" /><button type="submit">Send</button></form>
+            </section>
+
+            <button class="battle-primary battle-start" id="battle-start" type="button" data-battle-action="start">Start 5-second countdown <span>→</span></button>
+            <p class="battle-waiting" id="battle-waiting">Waiting for the host to start…</p>
+          </div>
+        </section>
+
+        <section class="screen battle-screen battle-countdown-screen" data-screen="battle-countdown" aria-labelledby="battle-countdown-title">
+          <div class="battle-countdown-orbit" aria-hidden="true"></div>
+          <p class="eyebrow">Everyone together</p>
+          <h1 id="battle-countdown-title">Battle starts in</h1>
+          <strong id="battle-countdown-number">5</strong>
+          <p id="battle-countdown-sync">Syncing clocks and loading portraits…</p>
+          <div class="battle-ready-row" id="battle-ready-row"></div>
+        </section>
+
+        <section class="screen battle-screen battle-game-screen" data-screen="battle-game" aria-labelledby="battle-game-title">
+          <h1 class="sr-only" id="battle-game-title">Live battle</h1>
+          <div class="battle-game-status">
+            <button class="battle-icon-button" type="button" data-battle-action="leave" aria-label="Leave battle">×</button>
+            <div class="battle-timer"><span>TIME</span><strong id="battle-time-left">03:00</strong></div>
+            <div class="battle-points"><span>POINTS</span><strong id="battle-points">0</strong></div>
+          </div>
+          <div class="battle-progress-copy"><span>Card <b id="battle-card-number">1</b>/<span id="battle-card-total">20</span></span><span id="battle-speed-hint">+5 speed available</span></div>
+          <div class="battle-deck" id="battle-deck">
+            <div class="battle-portrait-fill" id="battle-portrait-fill" aria-hidden="true"></div>
+            <img id="battle-portrait" alt="Battle portrait" draggable="false" />
+            <div class="battle-answer-stamp" id="battle-answer-stamp" aria-hidden="true"></div>
+            <div class="battle-peer-reactions" id="battle-peer-reactions" aria-live="polite"></div>
+          </div>
+          <div class="battle-reactions" aria-label="React to this portrait">
+            <button type="button" data-battle-reaction="😂" aria-label="React laughing">😂</button>
+            <button type="button" data-battle-reaction="🤔" aria-label="React thinking">🤔</button>
+            <button type="button" data-battle-reaction="😱" aria-label="React shocked">😱</button>
+            <button type="button" data-battle-reaction="🔥" aria-label="React fire">🔥</button>
+            <button type="button" data-battle-reaction="🙈" aria-label="React monkey">🙈</button>
+          </div>
+          <div class="battle-choice-row">
+            <button class="battle-choice battle-lady" type="button" data-battle-choice="woman"><strong>Lady</strong><small>← LEFT</small></button>
+            <button class="battle-choice battle-ladyboy" type="button" data-battle-choice="trans"><strong>Ladyboy</strong><small>RIGHT →</small></button>
+          </div>
+          <section class="battle-race" aria-labelledby="battle-race-title">
+            <div class="battle-race-head"><h2 id="battle-race-title">Live race</h2><button type="button" data-battle-action="toggle-game-chat">Chat <span id="battle-unread">0</span></button></div>
+            <div class="battle-track" id="battle-track"><i></i><div id="battle-racers"></div></div>
+          </section>
+          <aside class="battle-game-chat" id="battle-game-chat" hidden>
+            <div class="battle-game-chat-head"><strong>Party chat</strong><button type="button" data-battle-action="toggle-game-chat">×</button></div>
+            <ol class="battle-chat-log" id="battle-game-chat-log"></ol>
+            <form class="battle-chat-form" id="battle-game-chat-form"><input id="battle-game-chat-input" maxlength="220" autocomplete="off" placeholder="Quick message…" /><button type="submit">Send</button></form>
+          </aside>
+        </section>
+
+        <section class="screen battle-screen battle-results-screen" data-screen="battle-results" aria-labelledby="battle-results-title">
+          <div class="battle-results-hero"><span aria-hidden="true">🏆</span><p class="eyebrow">Battle complete</p><h1 id="battle-results-title">Party rankings</h1><p id="battle-results-note">Points reward accuracy and speed.</p></div>
+          <ol class="battle-leaderboard" id="battle-leaderboard"></ol>
+          <section class="battle-panel battle-chat-panel">
+            <div class="battle-section-title"><div><p class="eyebrow">After party</p><h2>Battle chat</h2></div><span>P2P</span></div>
+            <ol class="battle-chat-log" id="battle-results-chat-log"></ol>
+            <form class="battle-chat-form" id="battle-results-chat-form"><input id="battle-results-chat-input" maxlength="220" autocomplete="off" placeholder="Good game…" /><button type="submit">Send</button></form>
+          </section>
+          <button class="battle-primary" id="battle-rematch" type="button" data-battle-action="rematch">Set up rematch <span>↻</span></button>
+          <button class="battle-secondary" type="button" data-battle-action="leave">Leave party</button>
+        </section>
       </main>
+    </div>
+    <div class="battle-scanner" id="battle-scanner" hidden role="dialog" aria-modal="true" aria-labelledby="battle-scanner-title">
+      <div class="battle-scanner-card">
+        <div class="battle-section-title"><div><p class="eyebrow">Camera</p><h2 id="battle-scanner-title">Scan battle QR</h2></div><button class="battle-icon-button" type="button" data-battle-action="close-scan" aria-label="Close scanner">×</button></div>
+        <div class="battle-camera-frame"><video id="battle-camera" playsinline muted></video><span></span></div>
+        <p id="battle-camera-status">Point the camera at the host's QR code.</p>
+      </div>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>

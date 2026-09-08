@@ -1,6 +1,6 @@
 # Spot Check
 
-A dependency-free, mobile-first swipe quiz for GitHub Pages. It presents up to 10 balanced portrait cards, supports horizontal drag plus explicit choice buttons, and offers focal-point pinch zoom capped at 1.8×. It calculates a score, assigns a humorous level, and shows a red–orange–green result meter.
+A mobile-first swipe quiz for GitHub Pages. Solo play presents up to 10 balanced portrait cards, supports horizontal drag plus explicit choice buttons, and offers focal-point pinch zoom capped at 1.8×. It calculates a score, assigns a humorous level, and shows a red–orange–green result meter.
 
 The quiz also includes answer undo, keyboard controls, answer review with swipe navigation, persistent per-mode personal stats, daily streaks, a monkey benchmark, and a device-local leaderboard. Rounds use only supplied photo assets and automatically grow to 10 when enough assets are available.
 
@@ -15,6 +15,21 @@ python -m http.server 8080
 ```
 
 Then visit `http://localhost:8080`.
+
+Run `npm ci` after cloning. Battle mode is shipped as the checked-in `battle.js` browser bundle; edit `battle-source.js`, then run `npm run battle` to rebuild it. `npm run check` verifies that the bundle and generated media are current.
+
+## Live Battle mode
+
+Battle mode is a browser-only live party room. Tapping Battle automatically creates an encrypted invite and shows its QR code; friends join from that QR, a copied/shared link, a pasted link, or the built-in camera scanner. Players can rename themselves, chat, react to individual cards, and follow one another on the live progress track.
+
+- The host chooses 10, 20, or 30 cards and a 30-second to custom-duration timer.
+- A synchronized five-second countdown gives every connected player the same seeded deck and music epoch.
+- Correct answers award 10 points plus a 0–5 integer speed bonus. The final board sorts by points, then correctness and finish time, and crowns the winner.
+- Progress is saved locally per room and player. Refreshing or reopening an invite on the same device resumes that player when the browser still has the room identity.
+- A deterministic vice host is selected. If the host leaves, the vice host takes over the authoritative clock and room state; another vice is then selected.
+- Emoji reactions are attached to a card, so players arriving at that card later see them too.
+
+The room uses WebRTC peer-to-peer connections with decentralized signaling; there is no application server, account, or central chat database. The implementation accepts an arbitrary roster, but practical room size depends on each participant's browser, device, and network because browsers cap simultaneous WebRTC connections. Battle mode is intended for casual trusted groups: invite links contain the room secret, so share them only with participants. Names, chat, answers, and progress are sent to room peers and retained only in participating browsers' local storage.
 
 ## Add your own assets
 
@@ -117,9 +132,9 @@ At runtime, `music.js` uses ordinary looping `HTMLAudioElement` players. There i
 
 The production site is entirely static and runs at `https://nomsams.github.io/canuspot/`:
 
-- `index.html`, `styles.css`, `app.js`, the manifest, and portrait files are served directly by GitHub Pages.
+- `index.html`, `styles.css`, `app.js`, `battle.js`, the manifest, and portrait files are served directly by GitHub Pages.
 - Quiz logic, scoring, image selection, personal statistics, and streaks run in the visitor's browser.
-- Browser `localStorage` holds device-local history. There is no application server, database, account system, or paid runtime dependency.
+- Browser `localStorage` holds device-local history. There is no application server, database, account system, or paid runtime dependency. Remote Battle peers connect through browser WebRTC using decentralized signaling.
 - `npm run assets` is only a maintainer command for regenerating the checked-in manifest after adding images. Visitors and GitHub Pages do not run it.
 
 The workflow at `.github/workflows/pages.yml` validates and deploys the repository automatically after every push to `main`. For the repository's one-time setup, open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**. No build command or hosting subscription is required. All runtime URLs are relative, so assets resolve correctly under the `/canuspot/` repository path.
@@ -145,6 +160,8 @@ For Supabase, replace the adapter with calls to an Edge Function. Recommended ta
 - `index.html` — accessible app structure
 - `styles.css` — responsive mobile/desktop UI and animations
 - `app.js` — quiz state, swipe gestures, scoring, local adapter, and sharing
+- `battle-source.js` — readable Battle room, synchronization, chat, reactions, scoring, and reconnection source
+- `battle.js` — checked-in, browser-ready Battle bundle used by GitHub Pages
 - `music.js` — lightweight scene-aware playback and volume crossfades for pre-rendered tracks
 - `assets/audio/` — five finished music loops and two finished answer cues
 - `assets/manifest.json` — static image metadata

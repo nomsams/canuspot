@@ -4,7 +4,16 @@
   "license": "UNLICENSED",
   "scripts": {
     "assets": "node scripts/generate-manifest.mjs",
+    "battle": "node scripts/build-battle.mjs",
     "soundtrack": "node scripts/render-soundtrack.mjs",
-    "check": "node --check music.js && node --check app.js && node scripts/generate-manifest.mjs --check && node scripts/render-soundtrack.mjs --check"
+    "check": "node --check music.js && node --check app.js && node scripts/build-battle.mjs --check && node scripts/generate-manifest.mjs --check && node scripts/render-soundtrack.mjs --check"
+  },
+  "dependencies": {
+    "jsqr": "1.4.0",
+    "qrcode": "1.5.4",
+    "trystero": "0.25.4"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9"
   }
 }
