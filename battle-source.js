@@ -1,4 +1,4 @@
-import { joinRoom } from "trystero";
+import { createEvent, getRelaySockets, joinRoom, subscribe } from "trystero";
 import QRCode from "qrcode";
 import jsQR from "jsqr";
 
@@ -8,9 +8,19 @@ const CARD_COUNTS = [10, 20, 30];
 const DEFAULT_CARD_COUNT = 20;
 const DEFAULT_DURATION = 180;
 const COUNTDOWN_MS = 5500;
-const HOST_GRACE_MS = 7000;
-const STALE_PLAYER_MS = 9000;
+const HOST_GRACE_MS = 45000;
+const STALE_PLAYER_MS = 60000;
 const CHAT_LIMIT = 80;
+const DISCOVERY_RETRY_MS = 2800;
+const RELAY_HEARTBEAT_MS = 6500;
+const SIGNAL_RELAY_URLS = [
+  "wss://nos.lol",
+  "wss://purplerelay.com",
+  "wss://relay.mostr.pub",
+  "wss://schnorr.me",
+  "wss://nostr.data.haus",
+  "wss://nostr.vulpem.com",
+];
 const REACTIONS = new Set(["😂", "🤔", "😱", "🔥", "🙈"]);
 const PLAYER_COLORS = ["#dfbd2e", "#ec6a86", "#5b9cea", "#5dbf89", "#a879e0", "#e78a43", "#4db9b4", "#d467c5"];
 
@@ -68,6 +78,23 @@ function fromBase64Url(value) {
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
   const binary = atob(padded);
   return new TextDecoder().decode(Uint8Array.from(binary, (character) => character.charCodeAt(0)));
+}
+
+function bytesToBase64Url(bytes) {
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function bytesFromBase64Url(value) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+async function sha256Bytes(value) {
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
 }
 
 function encodeInvite(invite) {
@@ -223,6 +250,8 @@ const runtime = {
   ticker: null,
   stateBroadcastTimer: null,
   disconnectedAt: null,
+  lastDiscoveryHello: 0,
+  stateReplies: new Map(),
   entering: false,
 };
 
@@ -314,7 +343,15 @@ class BattleTransport {
     this.onPeerLeaveCallback = onPeerLeave;
     this.seen = new Set();
     this.closed = false;
-    this.channel = typeof BroadcastChannel === "function"
+    this.relayBindings = new Map();
+    this.relayQueue = [];
+    this.relaySendChain = Promise.resolve();
+    this.relaySubscriptionId = `canuspot-${randomToken(8)}`;
+    this.lastRelayHeartbeatAt = 0;
+    this.lastRelayReceivedAt = 0;
+    const search = new URLSearchParams(location.search);
+    this.relayOnly = search.has("battle-relay-only");
+    this.channel = typeof BroadcastChannel === "function" && !search.has("battle-p2p-only") && !this.relayOnly
       ? new BroadcastChannel(`canuspot-battle-data-${invite.roomId}`)
       : null;
     if (this.channel) this.channel.onmessage = ({ data }) => this.receive(data, null);
@@ -322,9 +359,9 @@ class BattleTransport {
     this.room = joinRoom({
       appId: APP_ID,
       password: invite.secret,
-      relayConfig: { redundancy: 3, warnOnRelayFailure: false },
+      relayConfig: { urls: SIGNAL_RELAY_URLS, warnOnRelayFailure: false },
     }, invite.roomId, {
-      onJoinError: () => this.onStatus?.("relay-warning"),
+      onJoinError: () => this.onStatus?.("p2p-warning"),
     });
     this.action = this.room.makeAction("battle-packet");
     this.action.onMessage = (data, { peerId }) => this.receive(data, peerId);
@@ -334,16 +371,133 @@ class BattleTransport {
     };
     this.room.onPeerLeave = (peerId) => {
       this.onPeerLeaveCallback?.(peerId);
-      if (Object.keys(this.room.getPeers()).length === 0) this.onStatus?.("discovering");
+      if (Object.keys(this.room.getPeers()).length === 0) {
+        this.onStatus?.(this.lastRelayReceivedAt ? "relay-connected" : "discovering");
+      }
     };
+    this.relayReady = this.initializeRelayFallback();
   }
 
-  receive(envelope, peerId) {
+  async initializeRelayFallback() {
+    if (!crypto.subtle) return;
+    try {
+      const material = `${APP_ID}|${this.invite.roomId}|${this.invite.secret}`;
+      const [topicBytes, keyBytes] = await Promise.all([
+        sha256Bytes(`topic|${material}`),
+        sha256Bytes(`key|${material}`),
+      ]);
+      if (this.closed) return;
+      this.relayTopic = `canuspot-${bytesToBase64Url(topicBytes)}`;
+      this.relayKey = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt", "decrypt"]);
+      this.syncRelaySockets();
+      this.relaySyncTimer = setInterval(() => this.syncRelaySockets(), 1800);
+    } catch {
+      this.onStatus?.("relay-warning");
+    }
+  }
+
+  syncRelaySockets() {
+    if (this.closed || !this.relayTopic) return;
+    const sockets = getRelaySockets();
+    this.relayBindings.forEach((binding, url) => {
+      if (sockets[url] === binding.socket) return;
+      this.detachRelaySocket(url, binding);
+    });
+    Object.entries(sockets).forEach(([url, socket]) => {
+      if (!socket || this.relayBindings.has(url)) return;
+      const onOpen = () => {
+        this.subscribeRelaySocket(socket);
+        this.onStatus?.("relay-ready");
+        this.flushRelayQueue();
+      };
+      const onMessage = (event) => { void this.receiveRelayMessage(event.data); };
+      socket.addEventListener("open", onOpen);
+      socket.addEventListener("message", onMessage);
+      const binding = { socket, onOpen, onMessage };
+      this.relayBindings.set(url, binding);
+      if (socket.readyState === 1) onOpen();
+    });
+  }
+
+  subscribeRelaySocket(socket) {
+    if (socket.readyState !== 1 || !this.relayTopic) return;
+    try { socket.send(subscribe(this.relaySubscriptionId, this.relayTopic)); } catch { /* Another relay remains available. */ }
+  }
+
+  detachRelaySocket(url, binding) {
+    binding.socket.removeEventListener("open", binding.onOpen);
+    binding.socket.removeEventListener("message", binding.onMessage);
+    this.relayBindings.delete(url);
+  }
+
+  async encryptRelayEnvelope(envelope) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const plaintext = new TextEncoder().encode(JSON.stringify(envelope));
+    const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, this.relayKey, plaintext));
+    return `${bytesToBase64Url(iv)}.${bytesToBase64Url(ciphertext)}`;
+  }
+
+  async decryptRelayEnvelope(content) {
+    const [ivPart, ciphertextPart] = String(content || "").split(".");
+    if (!ivPart || !ciphertextPart) return null;
+    const plaintext = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: bytesFromBase64Url(ivPart) },
+      this.relayKey,
+      bytesFromBase64Url(ciphertextPart),
+    );
+    return JSON.parse(new TextDecoder().decode(plaintext));
+  }
+
+  async receiveRelayMessage(data) {
+    if (this.closed || !this.relayKey || !this.relayTopic) return;
+    try {
+      const [type, subscriptionId, event] = JSON.parse(String(data));
+      if (type !== "EVENT" || subscriptionId !== this.relaySubscriptionId || typeof event?.content !== "string") return;
+      if (!event.tags?.some((tag) => tag?.[0] === "x" && tag?.[1] === this.relayTopic)) return;
+      const envelope = await this.decryptRelayEnvelope(event.content);
+      if (!envelope || Math.abs(Date.now() - Number(envelope.sentAt)) > 6 * 60 * 60 * 1000) return;
+      this.lastRelayReceivedAt = Date.now();
+      this.receive(envelope, null, true);
+    } catch {
+      // Invalid, expired, or unrelated public relay events are ignored.
+    }
+  }
+
+  openRelaySockets() {
+    return [...this.relayBindings.values()].map((binding) => binding.socket).filter((socket) => socket.readyState === 1);
+  }
+
+  queueRelayEnvelope(envelope) {
+    this.relaySendChain = this.relaySendChain.then(async () => {
+      await this.relayReady;
+      if (this.closed || !this.relayKey || !this.relayTopic) return;
+      this.syncRelaySockets();
+      const sockets = this.openRelaySockets();
+      if (sockets.length === 0) {
+        this.relayQueue.push(envelope);
+        this.relayQueue = this.relayQueue.slice(-30);
+        return;
+      }
+      const event = await createEvent(this.relayTopic, await this.encryptRelayEnvelope(envelope));
+      sockets.forEach((socket) => {
+        try { socket.send(event); } catch { /* The next heartbeat retries room discovery. */ }
+      });
+    }).catch(() => {});
+  }
+
+  flushRelayQueue() {
+    const queued = this.relayQueue.splice(0);
+    queued.forEach((envelope) => this.queueRelayEnvelope(envelope));
+  }
+
+  receive(envelope, peerId, viaRelay = false) {
     if (!envelope || envelope.roomId !== this.invite.roomId || envelope.connectionId === this.self.connectionId) return;
     if (envelope.target && envelope.target !== this.self.playerId) return;
+    if (peerId && envelope.from) runtime.peerPlayers.set(peerId, envelope.from);
     if (this.seen.has(envelope.messageId)) return;
     this.seen.add(envelope.messageId);
     if (this.seen.size > 600) this.seen.delete(this.seen.values().next().value);
+    if (viaRelay) this.onStatus?.(this.peerCount() > 0 ? "connected" : "relay-connected");
     this.onPacket(envelope, peerId);
   }
 
@@ -363,15 +517,37 @@ class BattleTransport {
     const targetPeer = target
       ? [...runtime.peerPlayers.entries()].find(([, playerId]) => playerId === target)?.[0]
       : null;
-    this.action.send(envelope, targetPeer ? { target: targetPeer } : undefined).catch(() => {});
+    if (!this.relayOnly) this.action.send(envelope, targetPeer ? { target: targetPeer } : undefined).catch(() => {});
+    if (type !== "heartbeat" || Date.now() - this.lastRelayHeartbeatAt >= RELAY_HEARTBEAT_MS) {
+      if (type === "heartbeat") this.lastRelayHeartbeatAt = Date.now();
+      this.queueRelayEnvelope(envelope);
+    }
   }
 
   peerCount() {
     return Object.keys(this.room.getPeers()).length;
   }
 
+  diagnostics() {
+    return {
+      p2pPeers: this.peerCount(),
+      openRelays: this.openRelaySockets().length,
+      relayActive: this.lastRelayReceivedAt > 0,
+      localBridge: Boolean(this.channel),
+      relayOnly: this.relayOnly,
+    };
+  }
+
   async close() {
     this.closed = true;
+    clearInterval(this.relaySyncTimer);
+    this.relayBindings.forEach((binding, url) => {
+      if (binding.socket.readyState === 1) {
+        try { binding.socket.send(JSON.stringify(["CLOSE", this.relaySubscriptionId])); } catch { /* Socket already closing. */ }
+      }
+      this.detachRelaySocket(url, binding);
+    });
+    this.relayQueue = [];
     this.channel?.close();
     try { await this.room.leave(); } catch { /* Already disconnected. */ }
   }
@@ -571,6 +747,7 @@ function mergePlayer(presence) {
 
 function acceptState(incoming, senderId) {
   if (!validRoomState(incoming)) return;
+  if (!runtime.roomState && senderId !== incoming.hostId) return;
   const senderCanLead = senderId === incoming.hostId || !runtime.roomState;
   if (!senderCanLead && newerState(incoming, runtime.roomState)) {
     const expected = runtime.roomState?.viceHostId;
@@ -657,18 +834,27 @@ function receiveReaction(reaction) {
   renderCardReactions();
 }
 
+function sendAuthoritativeStateTo(playerId, force = false) {
+  if (!isHost() || !runtime.roomState || !playerId || playerId === runtime.self.playerId) return;
+  const previous = Number(runtime.stateReplies.get(playerId)) || 0;
+  if (!force && Date.now() - previous < 4500) return;
+  runtime.stateReplies.set(playerId, Date.now());
+  runtime.transport?.send("state", runtime.roomState, playerId);
+}
+
 function onPacket(envelope, peerId) {
   if (peerId) runtime.peerPlayers.set(peerId, envelope.from);
   const { type, payload, from } = envelope;
   if (type === "hello") {
     mergePlayer(payload?.presence);
     runtime.transport.send("presence", selfPresence(), from);
-    if (runtime.roomState) runtime.transport.send("state", runtime.roomState, from);
+    sendAuthoritativeStateTo(from, true);
     if (runtime.roomState?.hostId === runtime.self.playerId) {
       runtime.transport.send("clock-pong", { pingId: payload?.pingId, clientSentAt: payload?.clientSentAt, hostNow: Date.now() }, from);
     }
   } else if (type === "presence" || type === "heartbeat") {
     mergePlayer(payload);
+    sendAuthoritativeStateTo(from);
   } else if (type === "state") {
     acceptState(payload, from);
   } else if (type === "progress") {
@@ -853,6 +1039,8 @@ async function connectToRoom(invite, creator = false) {
     runtime.reactions = {};
     runtime.clockOffset = 0;
     runtime.clockSamples = [];
+    runtime.lastDiscoveryHello = 0;
+    runtime.stateReplies = new Map();
     runtime.game = null;
     runtime.countdownStarted = false;
     runtime.musicStarted = false;
@@ -867,8 +1055,11 @@ async function connectToRoom(invite, creator = false) {
     runtime.transport = new BattleTransport(invite, runtime.self, onPacket, onPeerLeave);
     runtime.transport.onStatus = (status) => {
       if (status === "connected") setConnectionStatus("P2P live", true);
-      else if (status === "relay-warning") setConnectionStatus("P2P live", false);
-      else setConnectionStatus("P2P live", false);
+      else if (status === "relay-connected") setConnectionStatus("Relay live", true);
+      else if (status === "relay-ready") setConnectionStatus("Room ready", true);
+      else if (status === "p2p-warning") setConnectionStatus("Relay fallback", true);
+      else if (status === "relay-warning") setConnectionStatus("Reconnecting", false);
+      else setConnectionStatus("Finding players", false);
     };
     runtime.transport.onPeerJoin = (peerId) => {
       runtime.transport.send("hello", { presence: selfPresence(), clientSentAt: Date.now(), pingId: randomToken(5) });
@@ -886,11 +1077,9 @@ async function connectToRoom(invite, creator = false) {
     } else {
       setTimeout(() => {
         if (!runtime.roomState && runtime.invite?.roomId === invite.roomId) {
-          runtime.roomState = createLobbyState(runtime.self.playerId);
-          runtime.creator = true;
-          saveRoomState();
-          broadcastState(true);
-          addSystemMessage("The original host is away, so this player recovered the room.");
+          setConnectionStatus("Finding host · retrying", false);
+          runtime.transport?.send("hello", { presence: selfPresence(), clientSentAt: Date.now(), pingId: randomToken(5) });
+          showToast("Still finding the host. Keep both browsers open; reconnecting automatically.");
           renderLobby();
         }
       }, 12000);
@@ -1263,6 +1452,10 @@ function tickBattle() {
     tickBattle.lastHeartbeat = now;
     mergePlayer(selfPresence());
     runtime.transport.send("heartbeat", selfPresence());
+  }
+  if (!runtime.roomState && now - runtime.lastDiscoveryHello > DISCOVERY_RETRY_MS) {
+    runtime.lastDiscoveryHello = now;
+    runtime.transport.send("hello", { presence: selfPresence(), clientSentAt: now, pingId: randomToken(5) });
   }
   const host = runtime.roomState && runtime.players.get(runtime.roomState.hostId);
   if (runtime.roomState && runtime.roomState.hostId !== runtime.self.playerId && (!host || !host.connected || now - host.lastSeen > HOST_GRACE_MS)) {
@@ -1774,6 +1967,7 @@ window.SpotCheckBattle = {
     isHost: isHost(),
     phase: runtime.roomState?.phase || null,
     players: runtime.players.size,
+    network: runtime.transport?.diagnostics?.() || null,
     game: runtime.game ? { index: runtime.game.index, points: runtime.game.points, correct: runtime.game.correct } : null,
   }),
   leave: leaveBattle,

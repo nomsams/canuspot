@@ -29,7 +29,7 @@ Battle mode is a browser-only live party room. Tapping Battle automatically crea
 - A deterministic vice host is selected. If the host leaves, the vice host takes over the authoritative clock and room state; another vice is then selected.
 - Emoji reactions are attached to a card, so players arriving at that card later see them too.
 
-The room uses WebRTC peer-to-peer connections with decentralized signaling; there is no application server, account, or central chat database. The implementation accepts an arbitrary roster, but practical room size depends on each participant's browser, device, and network because browsers cap simultaneous WebRTC connections. Battle mode is intended for casual trusted groups: invite links contain the room secret, so share them only with participants. Names, chat, answers, and progress are sent to room peers and retained only in participating browsers' local storage.
+The room prefers WebRTC peer-to-peer connections with decentralized signaling. If two networks cannot establish a direct WebRTC route, the same short room packets fall back to end-to-end encrypted, ephemeral Nostr relay events and automatically return to direct P2P when available. There is no application server, account, or central chat database. The implementation accepts an arbitrary roster, but practical room size depends on each participant's browser, device, network, and public-relay availability. Battle mode is intended for casual trusted groups: invite links contain the room secret, so share them only with participants. Names, chat, answers, and progress are encrypted in transit and retained locally by participating browsers.
 
 ## Add your own assets
 
@@ -110,7 +110,7 @@ Only use images you own or have explicit permission to publish. If real people a
 - **Lady / Ladyboy** — Guess between the supplied `lady…` and `ldb…` image groups
 - **Man / Trans man** — Available when both matching manual image groups have content
 
-Toggle modes using the header button. A mode without at least one image for each answer is hidden automatically. A round only includes cards whose category and answer both belong to that mode. The browser prioritizes portraits the visitor has never actually viewed; only after that pool is exhausted does it recycle missed portraits, followed by the least-recently viewed correct ones. Selection alternates between answer groups when both have eligible cards, while never repeating a portrait inside one round.
+Toggle modes using the header button. A mode without at least one image for each answer is hidden automatically. A round only includes cards whose category and answer both belong to that mode. Each browser keeps a durable per-mode portrait cycle: no eligible portrait is recycled until every portrait in that cycle has actually appeared, including across refreshes and separate games. Newly imported portraits enter the current cycle immediately. After exhaustion, missed portraits and then the least-recently viewed correct ones are favored in the new cycle. Selection alternates between answer groups when possible and never repeats a portrait inside one round.
 
 ## Original soundtrack
 

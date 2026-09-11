@@ -134,6 +134,7 @@ const state = {
   attemptStartedAt: 0,
   deviceHash: null,
   imageMemory: {},
+  eligibleImageIds: [],
   viewedInRound: new Set(),
 };
 
@@ -168,6 +169,37 @@ function readLocalJSON(key, fallback) {
 
 function writeLocalJSON(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function imageCycleKey(deviceHash, mode) {
+  return `spot-check:image-cycle:${mode}:${deviceHash}`;
+}
+
+function normalizeImageCycle(stored, eligibleIds, imageMemory = {}) {
+  const poolIds = [...new Set(eligibleIds.filter((imageId) => typeof imageId === "string" && imageId))];
+  const pool = new Set(poolIds);
+  const validStored = stored?.version === 1 && Array.isArray(stored.poolIds) && Array.isArray(stored.remainingIds);
+  const previousPool = new Set(validStored ? stored.poolIds : []);
+  let remainingIds = validStored
+    ? [...new Set(stored.remainingIds)].filter((imageId) => pool.has(imageId))
+    : poolIds.filter((imageId) => normalizedMemoryEntry(imageMemory[imageId]).views === 0);
+
+  // Newly imported portraits enter the current cycle immediately. They should
+  // never wait behind recycled cards just because the manifest grew.
+  const addedIds = poolIds.filter((imageId) => validStored && !previousPool.has(imageId));
+  remainingIds = [...addedIds, ...remainingIds.filter((imageId) => !addedIds.includes(imageId))];
+
+  let cycle = Math.max(1, Math.trunc(Number(stored?.cycle) || 1));
+  if (validStored && remainingIds.length === 0 && poolIds.length > 0) {
+    remainingIds = [...poolIds];
+    cycle += 1;
+  } else if (!validStored && remainingIds.length === 0 && poolIds.length > 0) {
+    // Existing visitors may already have viewed every portrait before cycle
+    // tracking was introduced. Their next game begins a fresh complete cycle.
+    remainingIds = [...poolIds];
+  }
+
+  return { version: 1, cycle, poolIds, remainingIds };
 }
 
 function readAttempts() {
@@ -298,7 +330,14 @@ const localData = {
     writeLocalJSON(key, data);
     return memory;
   },
-  async recordImageView(deviceHash, mode, imageId, viewedAt) {
+  async getImageCycle(deviceHash, mode, eligibleIds) {
+    const imageMemory = await localData.getImageMemory(deviceHash, mode);
+    const key = imageCycleKey(deviceHash, mode);
+    const cycle = normalizeImageCycle(readLocalJSON(key, null), eligibleIds, imageMemory);
+    writeLocalJSON(key, cycle);
+    return { cycle: cycle.cycle, remainingIds: [...cycle.remainingIds] };
+  },
+  async recordImageView(deviceHash, mode, imageId, viewedAt, eligibleIds = []) {
     const key = `spot-check:image-memory:${mode}`;
     const stored = readLocalJSON(key, {});
     const data = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
@@ -314,6 +353,13 @@ const localData = {
     };
     data[deviceHash] = memory;
     writeLocalJSON(key, data);
+
+    if (eligibleIds.length > 0) {
+      const cycleKey = imageCycleKey(deviceHash, mode);
+      const cycle = normalizeImageCycle(readLocalJSON(cycleKey, null), eligibleIds, memory);
+      cycle.remainingIds = cycle.remainingIds.filter((remainingId) => remainingId !== imageId);
+      writeLocalJSON(cycleKey, cycle);
+    }
   },
   async recordImageResults(deviceHash, mode, answers, answeredAt) {
     const key = `spot-check:image-memory:${mode}`;
@@ -344,7 +390,7 @@ const localData = {
     const key = `spot-check:shown:${mode}`;
     const stored = readLocalJSON(key, {});
     const data = stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
-    data[deviceHash] = shownIds.slice(-200);
+    data[deviceHash] = [...new Set(shownIds)];
     writeLocalJSON(key, data);
   },
 };
@@ -435,13 +481,16 @@ function setPortraitPresentation(container, image, backdrop, card, alt, onReady)
   if (image.complete) requestAnimationFrame(finishLoading);
 }
 
-function buildBalancedDeck(cards, mode, limit, imageMemory = {}) {
+function buildBalancedDeck(cards, mode, limit, imageMemory = {}, cycleRemainingIds = null) {
   const choiceIds = MODES[mode].choices.map((choice) => choice.id);
   if (choiceIds.some((choiceId) => !cards.some((card) => card.labels[mode] === choiceId))) {
     throw new Error("This mode needs at least one portrait for each answer.");
   }
 
-  const unseen = shuffle(cards.filter((card) => normalizedMemoryEntry(imageMemory[card.id]).views === 0));
+  const remainingSet = Array.isArray(cycleRemainingIds) ? new Set(cycleRemainingIds) : null;
+  const unseen = shuffle(cards.filter((card) => remainingSet
+    ? remainingSet.has(card.id)
+    : normalizedMemoryEntry(imageMemory[card.id]).views === 0));
   const missed = oldestFirst(cards.filter((card) => {
     const memory = normalizedMemoryEntry(imageMemory[card.id]);
     return memory.views > 0 && memory.lastCorrect === false;
@@ -451,14 +500,20 @@ function buildBalancedDeck(cards, mode, limit, imageMemory = {}) {
     return memory.views > 0 && memory.lastCorrect !== false;
   }), imageMemory);
 
-  const selected = takeBalanced(unseen, mode, choiceIds, limit);
-  if (selected.length < limit) {
-    selected.push(...takeBalanced(missed, mode, choiceIds, limit - selected.length));
-  }
-  if (selected.length < limit) {
-    selected.push(...takeBalanced(answeredOrSeen, mode, choiceIds, limit - selected.length));
-  }
-  return shuffle(selected);
+  const currentCycle = takeBalanced(unseen, mode, choiceIds, limit);
+  if (currentCycle.length >= limit) return shuffle(currentCycle);
+
+  const selectedIds = new Set(currentCycle.map((card) => card.id));
+  const recycled = [];
+  [...missed, ...answeredOrSeen, ...cards].forEach((card) => {
+    if (selectedIds.has(card.id) || recycled.some((candidate) => candidate.id === card.id)) return;
+    recycled.push(card);
+  });
+  const nextCycle = takeBalanced(recycled, mode, choiceIds, limit - currentCycle.length);
+
+  // Do not shuffle across the cycle boundary: the final never-before-repeated
+  // portraits must actually be shown before any recycled portrait appears.
+  return [...shuffle(currentCycle), ...shuffle(nextCycle)];
 }
 
 function preloadCards(cards) {
@@ -566,7 +621,17 @@ async function startQuiz() {
       imageMemory = {};
     }
     const targetLength = Math.min(QUIZ_LENGTH, modeCards.length);
-    state.cards = buildBalancedDeck(modeCards, state.mode, targetLength, imageMemory);
+    const eligibleImageIds = modeCards.map((card) => card.id);
+    let cycleRemainingIds = null;
+    try {
+      if (typeof window.SpotCheckData.getImageCycle === "function") {
+        const cycle = await window.SpotCheckData.getImageCycle(deviceHash, state.mode, eligibleImageIds);
+        cycleRemainingIds = Array.isArray(cycle?.remainingIds) ? cycle.remainingIds : null;
+      }
+    } catch {
+      cycleRemainingIds = null;
+    }
+    state.cards = buildBalancedDeck(modeCards, state.mode, targetLength, imageMemory, cycleRemainingIds);
     state.quizLength = state.cards.length;
     preloadCards(state.cards.slice(0, 3));
 
@@ -576,6 +641,7 @@ async function startQuiz() {
     state.attemptStartedAt = Date.now();
     state.deviceHash = deviceHash;
     state.imageMemory = imageMemory && typeof imageMemory === "object" ? imageMemory : {};
+    state.eligibleImageIds = eligibleImageIds;
     state.viewedInRound = new Set();
     renderChoices();
     renderCard();
@@ -600,7 +666,13 @@ async function rememberCardView(card) {
 
   try {
     if (typeof window.SpotCheckData.recordImageView === "function") {
-      await window.SpotCheckData.recordImageView(state.deviceHash, state.mode, card.id, viewedAt);
+      await window.SpotCheckData.recordImageView(
+        state.deviceHash,
+        state.mode,
+        card.id,
+        viewedAt,
+        state.eligibleImageIds,
+      );
     } else if (typeof window.SpotCheckData.setShownImages === "function") {
       const shownIds = Object.entries(state.imageMemory)
         .filter(([, memory]) => normalizedMemoryEntry(memory).views > 0)
