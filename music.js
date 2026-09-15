@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const AUDIO_VERSION = "3";
+  const AUDIO_VERSION = "4";
   const MASTER_VOLUME = 0.34;
   const EFFECT_VOLUME = 0.5;
   const CROSSFADE_MS = 520;
@@ -20,11 +20,14 @@
   const EFFECTS = {
     correct: "assets/audio/correct.wav",
     wrong: "assets/audio/wrong.wav",
+    combo3: "assets/audio/combo-3.wav",
+    combo5: "assets/audio/combo-5.wav",
+    combo10: "assets/audio/combo-10.wav",
   };
 
   const trackCache = new Map();
-  const effectPools = { correct: [], wrong: [] };
-  const effectPositions = { correct: 0, wrong: 0 };
+  const effectPools = Object.fromEntries(Object.keys(EFFECTS).map((kind) => [kind, []]));
+  const effectPositions = Object.fromEntries(Object.keys(EFFECTS).map((kind) => [kind, 0]));
   const playingTracks = new Set();
   const playlistPositions = { waiting: 0, battle: 0, results: 0 };
   let scene = null;
@@ -244,6 +247,17 @@
     effect.play().catch(() => {});
   }
 
+  function playComboEffect(combo) {
+    if (!enabled || !unlocked || typeof Audio !== "function") return;
+    const kind = combo >= 10 ? "combo10" : combo >= 5 ? "combo5" : combo >= 3 ? "combo3" : null;
+    if (!kind) return;
+    const effect = getEffect(kind);
+    effect.pause();
+    effect.currentTime = 0;
+    effect.volume = EFFECT_VOLUME * 0.82;
+    effect.play().catch(() => {});
+  }
+
   function getStatus() {
     return {
       supported: typeof Audio === "function",
@@ -265,5 +279,5 @@
     }
   });
 
-  window.SpotCheckMusic = { getStatus, playEffect, setEnabled, setScene, setSynchronizedScene, syncToEpoch, unlock };
+  window.SpotCheckMusic = { getStatus, playComboEffect, playEffect, setEnabled, setScene, setSynchronizedScene, syncToEpoch, unlock };
 })();

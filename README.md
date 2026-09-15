@@ -24,12 +24,19 @@ Battle mode is a browser-only live party room. Tapping Battle automatically crea
 
 - The host chooses 10, 20, or 30 cards and a 30-second to custom-duration timer.
 - A synchronized five-second countdown gives every connected player the same seeded deck and music epoch.
-- Correct answers award 10 points plus a 0–5 integer speed bonus. The final board sorts by points, then correctness and finish time, and crowns the winner.
+- Every answer can carry a 0–3 confidence wager after the choice is locked. Correct answers earn the wager; misses lose it. Correct answers also award 10 base points, a 0–5 speed bonus, and up to +3 for a 3×/5×/10× combo tier.
+- Live rival callouts react to passes and point gaps. The final board sorts by points, then correctness and finish time, crowns the winner, and assigns each player a performance title.
 - Progress is saved locally per room and player. Refreshing or reopening an invite on the same device resumes that player when the browser still has the room identity.
 - A deterministic vice host is selected. If the host leaves, the vice host takes over the authoritative clock and room state; another vice is then selected.
 - Emoji reactions are attached to a card, so players arriving at that card later see them too.
 
 The room prefers WebRTC peer-to-peer connections with decentralized signaling. If two networks cannot establish a direct WebRTC route, the same short room packets fall back to end-to-end encrypted, ephemeral Nostr relay events and automatically return to direct P2P when available. There is no application server, account, or central chat database. The implementation accepts an arbitrary roster, but practical room size depends on each participant's browser, device, network, and public-relay availability. Battle mode is intended for casual trusted groups: invite links contain the room secret, so share them only with participants. Names, chat, answers, and progress are encrypted in transit and retained locally by participating browsers.
+
+### Pass the phone
+
+The Battle launcher also offers a local one-device mode for two to eight players. The group enters display names and chooses 10, 20, or 30 cards plus a per-player timer. Each player receives the same balanced portrait set in a different order. A privacy handoff screen hides the deck and previous player's result until the named player accepts the phone. Scores, wagers, combos, titles, and the final podium all run locally; no room or network connection is created.
+
+Battle titles are device-local unlocks. Results can award deliberately sharp titles such as **Bangkok Final Boss**, **Needs a Bangkok Chaperone**, **Monkey's Emergency Contact**, or **Confidence Without Evidence**. Unlocked titles persist in `localStorage` and appear in the results cabinet.
 
 ## Add your own assets
 
@@ -126,7 +133,7 @@ The two quiz themes use a brighter pentatonic tuning, original singable retro-fa
 
 All five themes share G as their tonal center. The calm scenes use a suspended G pentatonic scale while battle and results use the closely related G-major pentatonic scale, preserving common notes across the smooth scene crossfade.
 
-At runtime, `music.js` uses ordinary looping `HTMLAudioElement` players. There is no `AudioContext`, oscillator graph, note scheduler, noise generator, live filter, or live compressor. Even the correct/wrong cues are pre-rendered WAV files. Run `npm run soundtrack` after editing the generator; `npm run check` verifies that every checked-in audio asset is current.
+At runtime, `music.js` uses ordinary looping `HTMLAudioElement` players. There is no `AudioContext`, oscillator graph, note scheduler, noise generator, live filter, or live compressor. Correct/wrong cues and the 3×, 5×, and 10× combo stingers are all pre-rendered WAV files. Run `npm run soundtrack` after editing the generator; `npm run check` verifies that every checked-in audio asset is current.
 
 ## GitHub Pages
 
@@ -163,7 +170,7 @@ For Supabase, replace the adapter with calls to an Edge Function. Recommended ta
 - `battle-source.js` — readable Battle room, synchronization, chat, reactions, scoring, and reconnection source
 - `battle.js` — checked-in, browser-ready Battle bundle used by GitHub Pages
 - `music.js` — lightweight scene-aware playback and volume crossfades for pre-rendered tracks
-- `assets/audio/` — five finished music loops and two finished answer cues
+- `assets/audio/` — five finished music loops, two answer cues, and three combo stingers
 - `assets/manifest.json` — static image metadata
 - `assets/unsorted/` — quick-import source images named `lady…` or `ldb…`
 - `assets/focus-overrides.json` — optional per-file crop adjustments

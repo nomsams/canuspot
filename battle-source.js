@@ -2,11 +2,20 @@ import { createEvent, getRelaySockets, joinRoom, subscribe } from "trystero";
 import QRCode from "qrcode";
 import jsQR from "jsqr";
 
-const APP_ID = "com.nomsams.canuspot.yellow-battle.v1";
+const BATTLE_PROTOCOL = 2;
+const APP_ID = "com.nomsams.canuspot.live-battle.v2";
 const MODE = "woman_trans";
 const CARD_COUNTS = [10, 20, 30];
 const DEFAULT_CARD_COUNT = 20;
 const DEFAULT_DURATION = 180;
+const PASS_PHONE_DEFAULT_CARDS = 10;
+const PASS_PHONE_DEFAULT_DURATION = 90;
+const PASS_PHONE_MIN_PLAYERS = 2;
+const PASS_PHONE_MAX_PLAYERS = 8;
+const MAX_WAGER = 3;
+const MAX_SPEED_BONUS = 5;
+const MAX_COMBO_BONUS = 3;
+const MAX_CORRECT_POINTS = 10 + MAX_SPEED_BONUS + MAX_WAGER + MAX_COMBO_BONUS;
 const COUNTDOWN_MS = 5500;
 const HOST_GRACE_MS = 45000;
 const STALE_PLAYER_MS = 60000;
@@ -23,6 +32,27 @@ const SIGNAL_RELAY_URLS = [
 ];
 const REACTIONS = new Set(["😂", "🤔", "😱", "🔥", "🙈"]);
 const PLAYER_COLORS = ["#dfbd2e", "#ec6a86", "#5b9cea", "#5dbf89", "#a879e0", "#e78a43", "#4db9b4", "#d467c5"];
+const TITLE_STORAGE_KEY = "spot-check:battle-titles:v1";
+const BATTLE_TITLES = [
+  { id: "guess-merchant", name: "Unlicensed Guess Merchant", roast: "No training. No permit. Plenty of opinions.", test: () => true },
+  { id: "human-coin", name: "Human Coin Toss", roast: "Statistically alive. Tactically absent.", test: ({ accuracy }) => accuracy >= 0.45 && accuracy <= 0.55 },
+  { id: "monkey-contact", name: "Monkey's Emergency Contact", roast: "The monkey asked us to stop comparing you two.", test: ({ accuracy }) => accuracy > 0 && accuracy < 0.5 },
+  { id: "bangkok-chaperone", name: "Needs a Bangkok Chaperone", roast: "Do not attempt Sukhumvit without adult supervision.", test: ({ accuracy }) => accuracy > 0 && accuracy <= 0.35 },
+  { id: "eyes-optional", name: "Eyes Apparently Optional", roast: "A flawless commitment to being completely wrong.", test: ({ correct }) => correct === 0 },
+  { id: "confidence-evidence", name: "Confidence Without Evidence", roast: "Bet first. Think never. Regret immediately.", test: ({ wagerLost }) => wagerLost >= 5 },
+  { id: "all-gas", name: "All Gas, No Eyeballs", roast: "Fast hands. Questionable relationship with reality.", test: ({ bestCombo, wagerWon }) => bestCombo >= 5 && wagerWon >= 4 },
+  { id: "built-different", name: "Built Different (Allegedly)", roast: "The streak was real. The humility was not.", test: ({ bestCombo }) => bestCombo >= 5 },
+  { id: "dangerous-streak", name: "Certified Menace", roast: "Ten straight. Somebody confiscate the phone.", test: ({ bestCombo }) => bestCombo >= 10 },
+  { id: "no-supervision", name: "No Adult Supervision Needed", roast: "Against all available evidence, you can be trusted outside.", test: ({ accuracy }) => accuracy >= 0.9 && accuracy < 1 },
+  { id: "bangkok-boss", name: "Bangkok Final Boss", roast: "Perfect score. Absolutely unbearable now.", test: ({ accuracy, correct }) => correct > 0 && accuracy === 1 },
+];
+const HANDOFF_ROASTS = [
+  "Take the phone. Everyone else: stop feeding them answers.",
+  "Your turn. Try not to lower the average too violently.",
+  "Phone unlocked. Dignity not guaranteed.",
+  "Step up. The monkey benchmark is watching.",
+  "No coaching. Let them fail in their own unique way.",
+];
 
 const el = (selector) => document.querySelector(selector);
 const all = (selector) => [...document.querySelectorAll(selector)];
@@ -98,7 +128,7 @@ async function sha256Bytes(value) {
 }
 
 function encodeInvite(invite) {
-  return toBase64Url(JSON.stringify({ v: 1, r: invite.roomId, s: invite.secret }));
+  return toBase64Url(JSON.stringify({ v: BATTLE_PROTOCOL, r: invite.roomId, s: invite.secret }));
 }
 
 function parseInvite(value) {
@@ -121,7 +151,7 @@ function parseInvite(value) {
   } catch {
     throw new Error("That does not look like a valid battle invite.");
   }
-  if (decoded?.v !== 1 || !/^[a-f0-9]{24,64}$/i.test(decoded.r) || !/^[a-f0-9]{24,64}$/i.test(decoded.s)) {
+  if (decoded?.v !== BATTLE_PROTOCOL || !/^[a-f0-9]{24,64}$/i.test(decoded.r) || !/^[a-f0-9]{24,64}$/i.test(decoded.s)) {
     throw new Error("That battle invite is invalid or unsupported.");
   }
   return { roomId: decoded.r, secret: decoded.s, token };
@@ -195,6 +225,55 @@ function makeDeck(cards, cardCount, seed) {
   return seededShuffle(selected, random).map((card) => card.id);
 }
 
+function comboBonus(combo) {
+  if (combo >= 10) return 3;
+  if (combo >= 5) return 2;
+  if (combo >= 3) return 1;
+  return 0;
+}
+
+function scoreBounds(answered, correct) {
+  const safeAnswered = Math.max(0, Math.trunc(Number(answered) || 0));
+  const safeCorrect = clamp(Math.trunc(Number(correct) || 0), 0, safeAnswered);
+  return {
+    minimum: -(safeAnswered - safeCorrect) * MAX_WAGER,
+    maximum: safeCorrect * MAX_CORRECT_POINTS,
+  };
+}
+
+function safeScore(points, answered, correct) {
+  const bounds = scoreBounds(answered, correct);
+  return clamp(Math.trunc(Number(points) || 0), bounds.minimum, bounds.maximum);
+}
+
+function titleStats(result, deckLength) {
+  const answered = clamp(Math.trunc(Number(result?.answered) || 0), 0, Math.max(0, deckLength));
+  const correct = clamp(Math.trunc(Number(result?.correct) || 0), 0, answered);
+  return {
+    answered,
+    correct,
+    accuracy: answered ? correct / answered : 0,
+    bestCombo: clamp(Math.trunc(Number(result?.bestCombo) || 0), 0, correct),
+    wagerWon: clamp(Math.trunc(Number(result?.wagerWon) || 0), 0, correct * MAX_WAGER),
+    wagerLost: clamp(Math.trunc(Number(result?.wagerLost) || 0), 0, (answered - correct) * MAX_WAGER),
+  };
+}
+
+function earnedTitles(result, deckLength) {
+  const stats = titleStats(result, deckLength);
+  return BATTLE_TITLES.filter((title) => title.test(stats));
+}
+
+function bestTitle(result, deckLength) {
+  return earnedTitles(result, deckLength).at(-1) || BATTLE_TITLES[0];
+}
+
+function readUnlockedTitles() {
+  const stored = readJSON(TITLE_STORAGE_KEY, []);
+  const validIds = new Set(BATTLE_TITLES.map((title) => title.id));
+  return new Set(Array.isArray(stored) ? stored.filter((id) => validIds.has(id)) : []);
+}
+
 function formatClock(milliseconds) {
   const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -253,6 +332,12 @@ const runtime = {
   lastDiscoveryHello: 0,
   stateReplies: new Map(),
   entering: false,
+  hotSeat: null,
+  passSetup: { names: ["Player 1", "Player 2"], cardCount: PASS_PHONE_DEFAULT_CARDS, durationSec: PASS_PHONE_DEFAULT_DURATION },
+  raceSnapshot: new Map(),
+  lastCalloutAt: 0,
+  lastCalloutKey: "",
+  newlyUnlockedTitles: new Set(),
 };
 
 function playerColor(playerId) {
@@ -272,7 +357,12 @@ function selfPresence() {
     progress: Number(result.index ?? runtime.game?.index) || 0,
     points: Number(result.points ?? runtime.game?.points) || 0,
     correct: Number(result.correct ?? runtime.game?.correct) || 0,
+    combo: Number(result.combo ?? runtime.game?.combo) || 0,
+    bestCombo: Number(result.bestCombo ?? runtime.game?.bestCombo) || 0,
+    wagerWon: Number(result.wagerWon ?? runtime.game?.wagerWon) || 0,
+    wagerLost: Number(result.wagerLost ?? runtime.game?.wagerLost) || 0,
     finishedAt: result.finishedAt ?? runtime.game?.finishedAt ?? null,
+    elapsedMs: result.elapsedMs ?? (runtime.game?.finishedAt ? runtime.game.finishedAt - runtime.roomState.startAt : null),
     timedOut: Boolean(result.timedOut ?? runtime.game?.timedOut),
   };
 }
@@ -575,16 +665,22 @@ function saveProgress() {
     index: runtime.game.index,
     points: runtime.game.points,
     correct: runtime.game.correct,
+    combo: runtime.game.combo,
+    bestCombo: runtime.game.bestCombo,
+    wagerWon: runtime.game.wagerWon,
+    wagerLost: runtime.game.wagerLost,
     answers: runtime.game.answers,
+    pendingChoice: runtime.game.pendingChoice,
     questionShownAt: runtime.game.questionShownAt,
     finishedAt: runtime.game.finishedAt,
+    elapsedMs: runtime.game.finishedAt ? Math.max(0, runtime.game.finishedAt - runtime.roomState.startAt) : null,
     timedOut: runtime.game.timedOut,
   });
 }
 
 function createLobbyState(hostId) {
   return {
-    protocol: 1,
+    protocol: BATTLE_PROTOCOL,
     roomId: runtime.invite.roomId,
     epoch: 1,
     revision: 1,
@@ -607,7 +703,7 @@ function createLobbyState(hostId) {
 
 function validRoomState(state) {
   return state
-    && state.protocol === 1
+    && state.protocol === BATTLE_PROTOCOL
     && state.roomId === runtime.invite?.roomId
     && /^[a-f0-9]{24,64}$/i.test(state.hostId || "")
     && ["lobby", "countdown", "playing", "finished"].includes(state.phase)
@@ -655,8 +751,13 @@ function updateSelfResult() {
     index: runtime.game.index,
     points: runtime.game.points,
     correct: runtime.game.correct,
+    combo: runtime.game.combo,
+    bestCombo: runtime.game.bestCombo,
+    wagerWon: runtime.game.wagerWon,
+    wagerLost: runtime.game.wagerLost,
     answered: runtime.game.answers.length,
     finishedAt: runtime.game.finishedAt,
+    elapsedMs: runtime.game.finishedAt ? Math.max(0, runtime.game.finishedAt - runtime.roomState.startAt) : null,
     timedOut: runtime.game.timedOut,
     lastUpdate: nowHost(),
   };
@@ -705,7 +806,11 @@ function mergePlayer(presence) {
     if (runtime.roomState.gameId && presence.readyGameId === runtime.roomState.gameId) {
       const index = clamp(Math.trunc(Number(presence.progress) || 0), 0, runtime.roomState.deck.length);
       const correct = clamp(Math.trunc(Number(presence.correct) || 0), 0, index);
-      const points = clamp(Math.trunc(Number(presence.points) || 0), 0, correct * 15);
+      const points = safeScore(presence.points, index, correct);
+      const combo = clamp(Math.trunc(Number(presence.combo) || 0), 0, correct);
+      const bestCombo = clamp(Math.trunc(Number(presence.bestCombo) || 0), combo, correct);
+      const wagerWon = clamp(Math.trunc(Number(presence.wagerWon) || 0), 0, correct * MAX_WAGER);
+      const wagerLost = clamp(Math.trunc(Number(presence.wagerLost) || 0), 0, (index - correct) * MAX_WAGER);
       const proposedFinish = Number(presence.finishedAt);
       const timedOut = Boolean(presence.timedOut || currentResult?.timedOut);
       const finishIsPlausible = Number.isFinite(proposedFinish)
@@ -725,8 +830,13 @@ function mergePlayer(presence) {
           index,
           points,
           correct,
+          combo,
+          bestCombo,
+          wagerWon,
+          wagerLost,
           answered: index,
           finishedAt,
+          elapsedMs: finishedAt ? clamp(Number(presence.elapsedMs) || finishedAt - runtime.roomState.startAt, 0, runtime.roomState.settings.durationSec * 1000) : null,
           timedOut,
           lastUpdate: nowHost(),
         };
@@ -743,6 +853,7 @@ function mergePlayer(presence) {
   }
   renderPlayers();
   renderRace();
+  renderRivalCallout();
 }
 
 function acceptState(incoming, senderId) {
@@ -774,6 +885,7 @@ function receiveProgress(progress) {
   const safeIndex = clamp(Math.trunc(Number(progress.index) || 0), 0, deckLength);
   const safeAnswered = clamp(Math.trunc(Number(progress.answered) || 0), 0, safeIndex);
   const safeCorrect = clamp(Math.trunc(Number(progress.correct) || 0), 0, safeAnswered);
+  const safeCombo = clamp(Math.trunc(Number(progress.combo) || 0), 0, safeCorrect);
   const proposedFinish = Number(progress.finishedAt);
   const finishIsPlausible = Number.isFinite(proposedFinish)
     && proposedFinish >= runtime.roomState.startAt - 1000
@@ -782,10 +894,17 @@ function receiveProgress(progress) {
     playerId: progress.playerId,
     name: cleanName(progress.name) || runtime.players.get(progress.playerId)?.name || "Player",
     index: safeIndex,
-    points: clamp(Math.trunc(Number(progress.points) || 0), 0, safeCorrect * 15),
+    points: safeScore(progress.points, safeAnswered, safeCorrect),
     correct: safeCorrect,
+    combo: safeCombo,
+    bestCombo: clamp(Math.trunc(Number(progress.bestCombo) || 0), safeCombo, safeCorrect),
+    wagerWon: clamp(Math.trunc(Number(progress.wagerWon) || 0), 0, safeCorrect * MAX_WAGER),
+    wagerLost: clamp(Math.trunc(Number(progress.wagerLost) || 0), 0, (safeAnswered - safeCorrect) * MAX_WAGER),
     answered: safeAnswered,
     finishedAt: finishIsPlausible && (safeIndex === deckLength || progress.timedOut) ? proposedFinish : null,
+    elapsedMs: finishIsPlausible && (safeIndex === deckLength || progress.timedOut)
+      ? clamp(Number(progress.elapsedMs) || proposedFinish - runtime.roomState.startAt, 0, runtime.roomState.settings.durationSec * 1000)
+      : null,
     timedOut: Boolean(progress.timedOut),
     lastUpdate: nowHost(),
   };
@@ -799,6 +918,7 @@ function receiveProgress(progress) {
   if (isHost()) broadcastState();
   renderRace();
   renderLeaderboard();
+  renderRivalCallout();
 }
 
 function receiveChat(message) {
@@ -979,7 +1099,7 @@ function showSoloHome() {
     screen.classList.toggle("is-active", active);
     screen.setAttribute("aria-hidden", String(!active));
   });
-  document.body.classList.remove("battle-mode");
+  document.body.classList.remove("battle-mode", "pass-phone-mode");
   window.SpotCheckMusic?.setScene("waiting");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -991,6 +1111,202 @@ async function loadManifest() {
   runtime.manifest = await response.json();
   runtime.cardsById = new Map(runtime.manifest.map((card) => [card.id, card]));
   return runtime.manifest;
+}
+
+function passPhoneNamesFromUi() {
+  return all("#pass-phone-player-list input").map((input, index) =>
+    cleanName(input.value) || `Player ${index + 1}`
+  );
+}
+
+function syncPassPhoneSetupFromUi() {
+  runtime.passSetup.names = passPhoneNamesFromUi();
+  const timer = el("#pass-phone-timer");
+  if (timer) runtime.passSetup.durationSec = clamp(Number(timer.value) || runtime.passSetup.durationSec, 60, 180);
+}
+
+function renderPassPhoneSetup() {
+  const list = el("#pass-phone-player-list");
+  if (!list) return;
+  list.replaceChildren(...runtime.passSetup.names.map((name, index) => {
+    const row = document.createElement("label");
+    row.className = "pass-phone-player-row";
+    const avatar = document.createElement("span");
+    avatar.style.setProperty("--player-color", PLAYER_COLORS[index % PLAYER_COLORS.length]);
+    avatar.textContent = String(index + 1);
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 24;
+    input.autocomplete = "off";
+    input.value = name;
+    input.setAttribute("aria-label", `Player ${index + 1} name`);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.dataset.battleAction = `pass-remove-${index}`;
+    remove.setAttribute("aria-label", `Remove ${name}`);
+    remove.textContent = "×";
+    remove.disabled = runtime.passSetup.names.length <= PASS_PHONE_MIN_PLAYERS;
+    row.append(avatar, input, remove);
+    return row;
+  }));
+  el("#pass-phone-player-count").textContent = `${runtime.passSetup.names.length} / ${PASS_PHONE_MAX_PLAYERS}`;
+  el("#pass-phone-card-count").textContent = runtime.passSetup.cardCount;
+  el("#pass-phone-timer").value = String(runtime.passSetup.durationSec);
+  const add = el("[data-battle-action='pass-add-player']");
+  if (add) add.disabled = runtime.passSetup.names.length >= PASS_PHONE_MAX_PLAYERS;
+}
+
+async function openPassPhoneSetup() {
+  await leaveBattle({ goHome: false, clearHash: true });
+  await loadManifest();
+  const stored = readJSON("spot-check:pass-phone-players", []);
+  const names = Array.isArray(stored) ? stored.map(cleanName).filter(Boolean).slice(0, PASS_PHONE_MAX_PLAYERS) : [];
+  runtime.passSetup.names = names.length >= PASS_PHONE_MIN_PLAYERS ? names : ["Player 1", "Player 2"];
+  document.body.classList.add("pass-phone-mode");
+  showBattleScreen("pass-phone-setup");
+  renderPassPhoneSetup();
+  window.SpotCheckMusic?.unlock().catch(() => {});
+}
+
+function startPassPhoneBattle() {
+  runtime.passSetup.names = passPhoneNamesFromUi();
+  runtime.passSetup.durationSec = clamp(Number(el("#pass-phone-timer").value) || PASS_PHONE_DEFAULT_DURATION, 60, 180);
+  const folded = runtime.passSetup.names.map((name) => name.toLocaleLowerCase());
+  if (new Set(folded).size !== folded.length) {
+    showToast("Give everyone a different name. Yes, even the twins.");
+    return;
+  }
+  writeJSON("spot-check:pass-phone-players", runtime.passSetup.names);
+  const seed = randomToken(16);
+  let baseDeck;
+  try {
+    baseDeck = makeDeck(runtime.manifest, runtime.passSetup.cardCount, seed);
+  } catch (error) {
+    showToast(error.message);
+    return;
+  }
+  const players = runtime.passSetup.names.map((name, index) => {
+    const playerId = randomToken(12);
+    return {
+      playerId,
+      name,
+      color: PLAYER_COLORS[index % PLAYER_COLORS.length],
+      joinedAt: Date.now() + index,
+      lastSeen: Date.now(),
+      connected: true,
+      readyGameId: null,
+      progress: 0,
+      points: 0,
+      correct: 0,
+    };
+  });
+  const usedOrders = new Set();
+  const decks = {};
+  players.forEach((player, playerIndex) => {
+    let deck = seededShuffle(baseDeck, mulberry32(hashNumber(`${seed}:${player.playerId}`)));
+    for (let offset = 1; usedOrders.has(deck.join("|")) && offset < deck.length; offset += 1) {
+      const shift = (playerIndex + offset) % deck.length;
+      deck = [...deck.slice(shift), ...deck.slice(0, shift)];
+    }
+    usedOrders.add(deck.join("|"));
+    decks[player.playerId] = deck;
+  });
+  runtime.hotSeat = {
+    seed,
+    players,
+    decks,
+    currentIndex: 0,
+    durationSec: runtime.passSetup.durationSec,
+    cardCount: runtime.passSetup.cardCount,
+  };
+  runtime.invite = null;
+  runtime.transport = null;
+  runtime.players = new Map(players.map((player) => [player.playerId, player]));
+  runtime.self = players[0];
+  runtime.roomState = {
+    protocol: BATTLE_PROTOCOL,
+    roomId: `local-${seed}`,
+    epoch: 1,
+    revision: 1,
+    updatedAt: Date.now(),
+    hostId: players[0].playerId,
+    viceHostId: players[1]?.playerId || null,
+    phase: "handoff",
+    settings: { cardCount: runtime.passSetup.cardCount, durationSec: runtime.passSetup.durationSec },
+    gameId: null,
+    seed,
+    deck: [],
+    startAt: null,
+    endAt: null,
+    musicTune: hashNumber(seed) % 2,
+    results: {},
+    reactions: {},
+    messages: [],
+  };
+  runtime.messages = [];
+  runtime.reactions = {};
+  runtime.clockOffset = 0;
+  runtime.clockSamples = [];
+  runtime.raceSnapshot = new Map();
+  runtime.newlyUnlockedTitles = new Set();
+  clearInterval(runtime.ticker);
+  runtime.ticker = setInterval(tickBattle, 200);
+  showPassPhoneHandoff();
+}
+
+function showPassPhoneHandoff() {
+  const party = runtime.hotSeat;
+  if (!party) return;
+  const player = party.players[party.currentIndex];
+  runtime.self = player;
+  runtime.game = null;
+  runtime.roomState.phase = "handoff";
+  runtime.roomState.deck = party.decks[player.playerId];
+  runtime.musicStarted = false;
+  el("#pass-phone-turn-label").textContent = `Player ${party.currentIndex + 1} of ${party.players.length}`;
+  el("#pass-phone-handoff-name").textContent = player.name;
+  el("#pass-phone-handoff-roast").textContent = HANDOFF_ROASTS[party.currentIndex % HANDOFF_ROASTS.length];
+  showBattleScreen("pass-phone-handoff");
+  window.SpotCheckMusic?.setScene("waiting");
+}
+
+function beginPassPhoneTurn() {
+  const party = runtime.hotSeat;
+  if (!party || runtime.roomState.phase !== "handoff") return;
+  const player = party.players[party.currentIndex];
+  const startAt = Date.now();
+  runtime.self = player;
+  runtime.roomState.phase = "playing";
+  runtime.roomState.gameId = randomToken(10);
+  runtime.roomState.deck = party.decks[player.playerId];
+  runtime.roomState.startAt = startAt;
+  runtime.roomState.endAt = startAt + party.durationSec * 1000;
+  runtime.roomState.musicTune = (hashNumber(party.seed) + party.currentIndex) % 2;
+  runtime.musicStarted = false;
+  prepareGame(true);
+  beginGame();
+  renderRivalCallout(true);
+}
+
+function finishHotSeatTurn() {
+  const party = runtime.hotSeat;
+  if (!party || !runtime.self || !runtime.game) return;
+  const stored = runtime.players.get(runtime.self.playerId) || runtime.self;
+  runtime.players.set(runtime.self.playerId, {
+    ...stored,
+    progress: runtime.game.index,
+    points: runtime.game.points,
+    correct: runtime.game.correct,
+    finishedAt: runtime.game.finishedAt,
+    timedOut: runtime.game.timedOut,
+  });
+  party.currentIndex += 1;
+  if (party.currentIndex < party.players.length) {
+    showPassPhoneHandoff();
+    return;
+  }
+  runtime.roomState.phase = "finished";
+  showBattleResults();
 }
 
 function setupIdentityResponder(roomId) {
@@ -1015,6 +1331,7 @@ async function connectToRoom(invite, creator = false) {
   runtime.entering = true;
   try {
     await leaveBattle({ goHome: false, clearHash: false });
+    document.body.classList.remove("pass-phone-mode");
     runtime.invite = invite;
     runtime.inviteLink = inviteUrl(invite);
     runtime.creator = creator;
@@ -1041,6 +1358,10 @@ async function connectToRoom(invite, creator = false) {
     runtime.clockSamples = [];
     runtime.lastDiscoveryHello = 0;
     runtime.stateReplies = new Map();
+    runtime.raceSnapshot = new Map();
+    runtime.lastCalloutAt = 0;
+    runtime.lastCalloutKey = "";
+    runtime.newlyUnlockedTitles = new Set();
     runtime.game = null;
     runtime.countdownStarted = false;
     runtime.musicStarted = false;
@@ -1148,7 +1469,11 @@ async function leaveBattle({ goHome = true, clearHash = true } = {}) {
   runtime.roomState = null;
   runtime.self = null;
   runtime.game = null;
+  runtime.hotSeat = null;
   runtime.players = new Map();
+  runtime.raceSnapshot = new Map();
+  runtime.newlyUnlockedTitles = new Set();
+  document.body.classList.remove("pass-phone-mode");
   if (clearHash && location.hash.includes("battle=")) history.replaceState(null, "", `${location.pathname}${location.search}`);
   if (goHome) showSoloHome();
 }
@@ -1201,6 +1526,10 @@ function startBattle() {
   }, true);
   runtime.messages = runtime.messages.slice(-CHAT_LIMIT);
   runtime.reactions = {};
+  runtime.raceSnapshot = new Map();
+  runtime.lastCalloutAt = 0;
+  runtime.lastCalloutKey = "";
+  runtime.newlyUnlockedTitles = new Set();
   runtime.roomState.messages = runtime.messages;
   preloadDeck(deck);
   prepareGame(true);
@@ -1212,12 +1541,28 @@ function prepareGame(forceReset = false) {
   if (!state?.gameId) return;
   const saved = readJSON(progressKey());
   const canRestore = !forceReset && saved?.gameId === state.gameId;
+  const savedAnswers = canRestore && Array.isArray(saved.answers) ? saved.answers.slice(0, state.deck.length) : [];
+  const restoredCorrect = clamp(Number(saved?.correct) || 0, 0, savedAnswers.length);
+  const pendingChoice = canRestore
+    && saved?.pendingChoice?.cardId === state.deck[savedAnswers.length]
+    && ["woman", "trans"].includes(saved.pendingChoice.choice)
+      ? {
+        cardId: saved.pendingChoice.cardId,
+        choice: saved.pendingChoice.choice,
+        responseMs: clamp(Number(saved.pendingChoice.responseMs) || 0, 0, state.settings.durationSec * 1000),
+      }
+      : null;
   runtime.game = canRestore ? {
     gameId: state.gameId,
-    index: clamp(Number(saved.index) || 0, 0, state.deck.length),
-    points: clamp(Number(saved.points) || 0, 0, state.deck.length * 15),
-    correct: clamp(Number(saved.correct) || 0, 0, state.deck.length),
-    answers: Array.isArray(saved.answers) ? saved.answers.slice(0, state.deck.length) : [],
+    index: savedAnswers.length,
+    points: safeScore(saved.points, savedAnswers.length, restoredCorrect),
+    correct: restoredCorrect,
+    combo: clamp(Number(saved.combo) || 0, 0, restoredCorrect),
+    bestCombo: clamp(Number(saved.bestCombo) || 0, 0, restoredCorrect),
+    wagerWon: clamp(Number(saved.wagerWon) || 0, 0, restoredCorrect * MAX_WAGER),
+    wagerLost: clamp(Number(saved.wagerLost) || 0, 0, (savedAnswers.length - restoredCorrect) * MAX_WAGER),
+    answers: savedAnswers,
+    pendingChoice,
     questionShownAt: Number(saved.questionShownAt) || null,
     finishedAt: Number(saved.finishedAt) || null,
     timedOut: Boolean(saved.timedOut),
@@ -1227,7 +1572,12 @@ function prepareGame(forceReset = false) {
     index: 0,
     points: 0,
     correct: 0,
+    combo: 0,
+    bestCombo: 0,
+    wagerWon: 0,
+    wagerLost: 0,
     answers: [],
+    pendingChoice: null,
     questionShownAt: null,
     finishedAt: null,
     timedOut: false,
@@ -1296,7 +1646,8 @@ function renderBattleCard() {
   const stamp = el("#battle-answer-stamp");
   runtime.game.locked = true;
   all("[data-battle-choice]").forEach((button) => { button.disabled = true; });
-  deck.classList.remove("is-answering", "is-wide");
+  deck.classList.remove("is-answering", "is-wide", "is-wagering");
+  el("#battle-wager").hidden = true;
   stamp.className = "battle-answer-stamp";
   stamp.textContent = "";
   fill.style.backgroundImage = `url(${card.src})`;
@@ -1311,22 +1662,29 @@ function renderBattleCard() {
     deck.classList.toggle("is-wide", image.naturalWidth / image.naturalHeight >= 1.15);
     image.style.opacity = "1";
     if (!runtime.game.questionShownAt) runtime.game.questionShownAt = nowHost();
-    runtime.game.locked = false;
-    all("[data-battle-choice]").forEach((button) => { button.disabled = false; });
+    if (runtime.game.pendingChoice?.cardId === cardId) showWagerPanel();
+    else {
+      runtime.game.locked = false;
+      all("[data-battle-choice]").forEach((button) => { button.disabled = false; });
+    }
     saveProgress();
   };
   image.onload = reveal;
   image.onerror = () => {
     if (runtime.roomState?.deck[runtime.game?.index] !== cardId) return;
     runtime.game.questionShownAt ||= nowHost();
-    runtime.game.locked = false;
-    all("[data-battle-choice]").forEach((button) => { button.disabled = false; });
+    if (runtime.game.pendingChoice?.cardId === cardId) showWagerPanel();
+    else {
+      runtime.game.locked = false;
+      all("[data-battle-choice]").forEach((button) => { button.disabled = false; });
+    }
   };
   image.src = card.src;
   if (image.complete && image.naturalWidth) requestAnimationFrame(reveal);
   el("#battle-card-number").textContent = runtime.game.index + 1;
   el("#battle-card-total").textContent = runtime.roomState.deck.length;
   el("#battle-points").textContent = runtime.game.points;
+  renderComboMeter();
   updateSpeedHint();
   renderCardReactions();
 }
@@ -1342,8 +1700,55 @@ function speedBonus(responseMs) {
 
 function updateSpeedHint() {
   if (!runtime.game?.questionShownAt) return;
+  if (runtime.game.pendingChoice) {
+    el("#battle-speed-hint").textContent = "Answer locked · place your bet";
+    return;
+  }
   const bonus = speedBonus(nowHost() - runtime.game.questionShownAt);
   el("#battle-speed-hint").textContent = bonus > 0 ? `+${bonus} speed available` : "Base points only";
+}
+
+function renderComboMeter(pop = false) {
+  const meter = el("#battle-combo");
+  if (!meter) return;
+  const combo = Math.max(0, Math.trunc(Number(runtime.game?.combo) || 0));
+  meter.querySelector("strong").textContent = `${combo}×`;
+  meter.classList.toggle("is-hot", combo >= 3 && combo < 5);
+  meter.classList.toggle("is-blazing", combo >= 5 && combo < 10);
+  meter.classList.toggle("is-nuclear", combo >= 10);
+  if (pop) {
+    meter.classList.remove("is-popping");
+    void meter.offsetWidth;
+    meter.classList.add("is-popping");
+  }
+}
+
+function showComboBurst(combo) {
+  if (![3, 5, 10].includes(combo)) return;
+  const burst = el("#battle-combo-burst");
+  if (!burst) return;
+  const label = combo === 3 ? "3×\nHEATING UP" : combo === 5 ? "5×\nON FIRE" : "10×\nCERTIFIED MENACE";
+  burst.textContent = label;
+  burst.style.whiteSpace = "pre-line";
+  burst.classList.remove("is-visible");
+  void burst.offsetWidth;
+  burst.classList.add("is-visible");
+  window.SpotCheckMusic?.playComboEffect?.(combo);
+}
+
+function showWagerPanel() {
+  if (!runtime.game?.pendingChoice) return;
+  runtime.game.locked = true;
+  all("[data-battle-choice]").forEach((button) => { button.disabled = true; });
+  el("#battle-deck").classList.add("is-wagering");
+  el("#battle-wager").hidden = false;
+  updateSpeedHint();
+}
+
+function hideWagerPanel() {
+  el("#battle-deck")?.classList.remove("is-wagering");
+  const wager = el("#battle-wager");
+  if (wager) wager.hidden = true;
 }
 
 function chooseBattleAnswer(choice) {
@@ -1354,16 +1759,46 @@ function chooseBattleAnswer(choice) {
   }
   const cardId = runtime.roomState.deck[runtime.game.index];
   const card = runtime.cardsById.get(cardId);
-  if (!card) return;
+  if (!card || !["woman", "trans"].includes(choice)) return;
   runtime.game.locked = true;
   all("[data-battle-choice]").forEach((button) => { button.disabled = true; });
   const responseMs = clamp(nowHost() - (runtime.game.questionShownAt || nowHost()), 0, runtime.roomState.settings.durationSec * 1000);
-  const correct = card.labels?.[MODE] === choice;
-  const bonus = correct ? speedBonus(responseMs) : 0;
-  const earned = correct ? 10 + bonus : 0;
+  runtime.game.pendingChoice = { cardId, choice, responseMs: Math.round(responseMs) };
+  saveProgress();
+  showWagerPanel();
+}
+
+function chooseBattleWager(value, continueAfter = true) {
+  if (!runtime.game?.pendingChoice || runtime.game.finishedAt || runtime.game.timedOut) return;
+  const wager = clamp(Math.trunc(Number(value) || 0), 0, MAX_WAGER);
+  const pending = runtime.game.pendingChoice;
+  const card = runtime.cardsById.get(pending.cardId);
+  if (!card || runtime.roomState.deck[runtime.game.index] !== pending.cardId) return;
+  hideWagerPanel();
+  const correct = card.labels?.[MODE] === pending.choice;
+  const speed = correct ? speedBonus(pending.responseMs) : 0;
+  const nextCombo = correct ? runtime.game.combo + 1 : 0;
+  const streakBonus = correct ? comboBonus(nextCombo) : 0;
+  const earned = correct ? 10 + speed + wager + streakBonus : -wager;
   runtime.game.points += earned;
   runtime.game.correct += correct ? 1 : 0;
-  runtime.game.answers.push({ cardId, choice, correct, responseMs: Math.round(responseMs), points: earned, answeredAt: nowHost() });
+  runtime.game.combo = nextCombo;
+  runtime.game.bestCombo = Math.max(runtime.game.bestCombo, nextCombo);
+  runtime.game.wagerWon += correct ? wager : 0;
+  runtime.game.wagerLost += correct ? 0 : wager;
+  runtime.game.answers.push({
+    cardId: pending.cardId,
+    choice: pending.choice,
+    correct,
+    responseMs: pending.responseMs,
+    wager,
+    speedBonus: speed,
+    comboBonus: streakBonus,
+    combo: nextCombo,
+    points: earned,
+    answeredAt: nowHost(),
+  });
+  runtime.game.pendingChoice = null;
   runtime.game.index += 1;
   runtime.game.questionShownAt = null;
   updateSelfResult();
@@ -1371,18 +1806,26 @@ function chooseBattleAnswer(choice) {
   saveProgress();
   runtime.transport?.send("progress", runtime.roomState.results[runtime.self.playerId]);
   runtime.transport?.send("presence", selfPresence());
+  el("#battle-points").textContent = runtime.game.points;
+  el("#battle-speed-hint").textContent = correct
+    ? `${speed ? `+${speed} speed · ` : ""}${wager ? `+${wager} nerve · ` : ""}${streakBonus ? `+${streakBonus} combo` : "locked in"}`
+    : wager ? `${wager} confidence points burned` : "No points. No damage. No glory.";
   renderRace();
+  renderComboMeter(correct);
+  renderRivalCallout(true);
   const stamp = el("#battle-answer-stamp");
-  stamp.textContent = correct ? `+${earned}` : "MISS";
+  stamp.textContent = correct ? `+${earned}` : wager ? `−${wager}` : "MISS";
   stamp.className = `battle-answer-stamp is-visible ${correct ? "is-correct" : "is-wrong"}`;
   el("#battle-deck").classList.add("is-answering");
   window.SpotCheckMusic?.playEffect(correct);
+  if (correct) showComboBurst(nextCombo);
 
+  if (!continueAfter) return;
   setTimeout(() => {
     if (!runtime.game || runtime.game.finishedAt || runtime.game.timedOut) return;
     if (runtime.game.index >= runtime.roomState.deck.length) finishLocal(false);
     else renderBattleCard();
-  }, 480);
+  }, 620);
 }
 
 function progressPayload() {
@@ -1399,6 +1842,10 @@ function finishLocal(timedOut) {
   updateSelfResult();
   saveProgress();
   runtime.transport?.send("progress", progressPayload());
+  if (runtime.hotSeat) {
+    finishHotSeatTurn();
+    return;
+  }
   if (isHost()) {
     const active = connectedPlayers();
     const allDone = active.every((player) => {
@@ -1416,15 +1863,25 @@ function showBattleResults() {
   showBattleScreen("battle-results");
   window.SpotCheckMusic?.setScene("results");
   renderLeaderboard();
+  renderTitleRewards();
   renderChat();
   const rematch = el("#battle-rematch");
-  rematch.hidden = !isHost();
-  el("#battle-results-note").textContent = nowHost() < (runtime.roomState?.endAt || 0)
-    ? "You finished. Rankings keep updating while the party races."
-    : "Final ranking: accuracy first, speed rewarded on every correct answer.";
+  rematch.hidden = !runtime.hotSeat && !isHost();
+  el("#battle-results-note").textContent = runtime.hotSeat
+    ? "The phone survived. Some reputations did not."
+    : nowHost() < (runtime.roomState?.endAt || 0)
+      ? "You finished. Rankings keep updating while the party races."
+      : "Final ranking: accuracy, speed, nerve, and streaks.";
 }
 
 function rematch() {
+  if (runtime.hotSeat) {
+    runtime.passSetup.names = runtime.hotSeat.players.map((player) => player.name);
+    runtime.passSetup.cardCount = runtime.hotSeat.cardCount;
+    runtime.passSetup.durationSec = runtime.hotSeat.durationSec;
+    startPassPhoneBattle();
+    return;
+  }
   if (!isHost()) return;
   commitHostState((state) => {
     state.phase = "lobby";
@@ -1440,25 +1897,27 @@ function rematch() {
   runtime.reactions = {};
   runtime.self.readyGameId = null;
   runtime.musicStarted = false;
+  runtime.raceSnapshot = new Map();
+  runtime.newlyUnlockedTitles = new Set();
   addSystemMessage(`${runtime.self.name} opened the rematch lobby.`);
   showBattleScreen("battle-lobby");
   renderLobby();
 }
 
 function tickBattle() {
-  if (!runtime.self || !runtime.transport) return;
+  if (!runtime.self || (!runtime.transport && !runtime.hotSeat)) return;
   const now = Date.now();
-  if (!tickBattle.lastHeartbeat || now - tickBattle.lastHeartbeat > 2500) {
+  if (runtime.transport && (!tickBattle.lastHeartbeat || now - tickBattle.lastHeartbeat > 2500)) {
     tickBattle.lastHeartbeat = now;
     mergePlayer(selfPresence());
     runtime.transport.send("heartbeat", selfPresence());
   }
-  if (!runtime.roomState && now - runtime.lastDiscoveryHello > DISCOVERY_RETRY_MS) {
+  if (runtime.transport && !runtime.roomState && now - runtime.lastDiscoveryHello > DISCOVERY_RETRY_MS) {
     runtime.lastDiscoveryHello = now;
     runtime.transport.send("hello", { presence: selfPresence(), clientSentAt: now, pingId: randomToken(5) });
   }
   const host = runtime.roomState && runtime.players.get(runtime.roomState.hostId);
-  if (runtime.roomState && runtime.roomState.hostId !== runtime.self.playerId && (!host || !host.connected || now - host.lastSeen > HOST_GRACE_MS)) {
+  if (!runtime.hotSeat && runtime.roomState && runtime.roomState.hostId !== runtime.self.playerId && (!host || !host.connected || now - host.lastSeen > HOST_GRACE_MS)) {
     scheduleHostElection();
   }
   if (!runtime.roomState) return;
@@ -1480,7 +1939,10 @@ function tickBattle() {
   if (["playing", "finished"].includes(runtime.roomState.phase)) {
     const remaining = runtime.roomState.endAt - nowHost();
     el("#battle-time-left").textContent = formatClock(remaining);
-    if (remaining <= 0 && runtime.game && !runtime.game.finishedAt && !runtime.game.timedOut) finishLocal(true);
+    if (remaining <= 0 && runtime.game && !runtime.game.finishedAt && !runtime.game.timedOut) {
+      if (runtime.game.pendingChoice) chooseBattleWager(0, false);
+      finishLocal(true);
+    }
     if (isHost() && remaining <= 0 && runtime.roomState.phase !== "finished") {
       commitHostState((state) => { state.phase = "finished"; }, true);
     }
@@ -1603,6 +2065,74 @@ function renderRace() {
   }));
 }
 
+function calloutPick(key, lines) {
+  return lines[hashNumber(String(key)) % lines.length];
+}
+
+function renderRivalCallout(force = false) {
+  const callout = el("#battle-rival-callout");
+  if (!callout || !runtime.roomState || !runtime.self || !el("[data-screen='battle-game']")?.classList.contains("is-active")) return;
+  const results = rankingResults().filter((result) => result.answered > 0 || result.playerId === runtime.self.playerId);
+  const selfIndex = results.findIndex((result) => result.playerId === runtime.self.playerId);
+  if (selfIndex < 0) return;
+  const previousSelf = runtime.raceSnapshot.get(runtime.self.playerId);
+  const passer = previousSelf === undefined ? null : results.find((result, index) =>
+    result.playerId !== runtime.self.playerId
+      && index < selfIndex
+      && Number(runtime.raceSnapshot.get(result.playerId)) > previousSelf
+  );
+  const rankSnapshot = new Map(results.map((result, index) => [result.playerId, index]));
+  runtime.raceSnapshot = rankSnapshot;
+  const leader = results[0];
+  const runnerUp = results[1];
+  let key;
+  let message;
+  if (passer) {
+    key = `pass:${passer.playerId}:${runtime.game?.index}`;
+    message = calloutPick(key, [
+      `${passer.name} just stole your place. That's embarrassing.`,
+      `${passer.name} flew past you. Check your mirrors.`,
+      `${passer.name} took your rank and your lunch money.`,
+      `${passer.name} passed you like you were reading the instructions.`,
+    ]);
+  } else if (results.length === 1) {
+    key = "alone";
+    message = runtime.hotSeat ? "Set a score worth passing the phone for." : "No rivals yet. Enjoy first place while it is technically true.";
+  } else if (selfIndex === 0) {
+    const gap = Math.max(0, leader.points - runnerUp.points);
+    key = `lead:${runnerUp.playerId}:${gap}:${runtime.game?.index}`;
+    message = calloutPick(key, [
+      `${runnerUp.name} is ${gap} point${gap === 1 ? "" : "s"} back. Try not to choke.`,
+      `You're leading. ${runnerUp.name} is waiting for the collapse.`,
+      `The crown is yours for now. Do not bottle this.`,
+      `${runnerUp.name} can still catch you. Stop celebrating.`
+    ]);
+  } else {
+    const gap = Math.max(0, leader.points - results[selfIndex].points);
+    key = `chase:${leader.playerId}:${gap}:${runtime.game?.index}`;
+    message = gap <= MAX_CORRECT_POINTS
+      ? calloutPick(key, [
+        `One clean answer from mugging ${leader.name} for the crown.`,
+        `${gap} point${gap === 1 ? "" : "s"} behind ${leader.name}. Stop sightseeing.`,
+        `${leader.name} is within reach. Try using both eyes.`,
+        `The crown is right there. Don't bottle it now.`,
+      ])
+      : calloutPick(key, [
+        `${gap} points behind ${leader.name}. This is becoming a rescue operation.`,
+        `${leader.name} is disappearing over the horizon. Wake up.`,
+        `${gap} points down. Even the monkey looks concerned.`,
+        `You are not chasing ${leader.name}; you are filing a missing-person report.`,
+      ]);
+  }
+  if (!force && (key === runtime.lastCalloutKey || Date.now() - runtime.lastCalloutAt < 2200)) return;
+  runtime.lastCalloutKey = key;
+  runtime.lastCalloutAt = Date.now();
+  callout.textContent = message;
+  callout.classList.remove("is-fresh");
+  void callout.offsetWidth;
+  callout.classList.add("is-fresh");
+}
+
 function renderChatList(container) {
   if (!container) return;
   container.replaceChildren(...runtime.messages.map((message) => {
@@ -1657,7 +2187,14 @@ function rankingResults() {
       points: Number(result.points) || 0,
       correct: Number(result.correct) || 0,
       answered: Number(result.answered) || 0,
+      combo: Number(result.combo) || 0,
+      bestCombo: Number(result.bestCombo) || 0,
+      wagerWon: Number(result.wagerWon) || 0,
+      wagerLost: Number(result.wagerLost) || 0,
       finishedAt: Number(result.finishedAt) || null,
+      elapsedMs: result.elapsedMs !== null && result.elapsedMs !== undefined && Number.isFinite(Number(result.elapsedMs))
+        ? Number(result.elapsedMs)
+        : null,
       timedOut: Boolean(result.timedOut),
     };
   }).sort((left, right) => right.points - left.points
@@ -1685,9 +2222,13 @@ function renderLeaderboard() {
     const name = document.createElement("b");
     name.textContent = `${result.name}${result.playerId === runtime.self?.playerId ? " (you)" : ""}`;
     const detail = document.createElement("small");
-    const elapsed = result.finishedAt ? result.finishedAt - runtime.roomState.startAt : NaN;
+    const elapsed = Number.isFinite(result.elapsedMs)
+      ? result.elapsedMs
+      : result.finishedAt ? result.finishedAt - runtime.roomState.startAt : NaN;
     detail.textContent = `${formatFinish(elapsed, result.timedOut)} · ${result.correct}/${runtime.roomState.deck.length} right`;
-    copy.append(name, detail);
+    const title = document.createElement("em");
+    title.textContent = bestTitle(result, runtime.roomState.deck.length).name;
+    copy.append(name, detail, title);
     const score = document.createElement("div");
     score.className = "battle-result-score";
     const points = document.createElement("strong");
@@ -1697,6 +2238,37 @@ function renderLeaderboard() {
     score.append(points, label);
     item.append(rank, avatar, copy, score);
     return item;
+  }));
+}
+
+function renderTitleRewards() {
+  const vault = el("#battle-title-vault");
+  if (!vault || !runtime.roomState) return;
+  const results = rankingResults();
+  const targets = runtime.hotSeat
+    ? results
+    : results.filter((result) => result.playerId === runtime.self?.playerId);
+  if (!targets.length) {
+    vault.hidden = true;
+    return;
+  }
+  vault.hidden = false;
+  const unlocked = readUnlockedTitles();
+  targets.forEach((result) => earnedTitles(result, runtime.roomState.deck.length).forEach((title) => {
+    if (!unlocked.has(title.id)) runtime.newlyUnlockedTitles.add(title.id);
+    unlocked.add(title.id);
+  }));
+  writeJSON(TITLE_STORAGE_KEY, [...unlocked]);
+  const featured = bestTitle(runtime.hotSeat ? results[0] : targets[0], runtime.roomState.deck.length);
+  el("#battle-earned-title").textContent = featured.name;
+  el("#battle-title-roast").textContent = `${featured.roast} · ${unlocked.size}/${BATTLE_TITLES.length} unlocked`;
+  vault.querySelector(".eyebrow").textContent = runtime.newlyUnlockedTitles.size ? "Title unlocked" : "Title cabinet";
+  const collection = el("#battle-title-collection");
+  collection.replaceChildren(...BATTLE_TITLES.filter((title) => unlocked.has(title.id)).map((title) => {
+    const chip = document.createElement("span");
+    chip.textContent = title.name;
+    chip.classList.toggle("is-new", runtime.newlyUnlockedTitles.has(title.id));
+    return chip;
   }));
 }
 
@@ -1823,6 +2395,32 @@ async function handleBattleAction(action) {
       const invite = { roomId: randomToken(16), secret: randomToken(16) };
       await connectToRoom({ ...invite, token: encodeInvite(invite) }, true);
     }
+  } else if (action === "pass-phone") {
+    await openPassPhoneSetup();
+  } else if (action === "pass-add-player") {
+    syncPassPhoneSetupFromUi();
+    if (runtime.passSetup.names.length < PASS_PHONE_MAX_PLAYERS) {
+      runtime.passSetup.names.push(`Player ${runtime.passSetup.names.length + 1}`);
+      renderPassPhoneSetup();
+      all("#pass-phone-player-list input").at(-1)?.focus();
+    }
+  } else if (action.startsWith("pass-remove-")) {
+    syncPassPhoneSetupFromUi();
+    const index = Number(action.slice("pass-remove-".length));
+    if (runtime.passSetup.names.length > PASS_PHONE_MIN_PLAYERS && Number.isInteger(index)) {
+      runtime.passSetup.names.splice(index, 1);
+      renderPassPhoneSetup();
+    }
+  } else if (action === "pass-cards-down" || action === "pass-cards-up") {
+    syncPassPhoneSetupFromUi();
+    const current = runtime.passSetup.cardCount;
+    const index = CARD_COUNTS.indexOf(current);
+    runtime.passSetup.cardCount = CARD_COUNTS[clamp(index + (action === "pass-cards-up" ? 1 : -1), 0, CARD_COUNTS.length - 1)];
+    renderPassPhoneSetup();
+  } else if (action === "pass-start") {
+    startPassPhoneBattle();
+  } else if (action === "pass-go") {
+    beginPassPhoneTurn();
   } else if (action === "create") {
     const invite = { roomId: randomToken(16), secret: randomToken(16) };
     await connectToRoom({ ...invite, token: encodeInvite(invite) }, true);
@@ -1890,6 +2488,13 @@ document.addEventListener("click", (event) => {
     handleBattleAction(action);
     return;
   }
+  const wager = event.target.closest("[data-battle-wager]")?.dataset.battleWager;
+  if (wager !== undefined) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    chooseBattleWager(wager);
+    return;
+  }
   const choice = event.target.closest("[data-battle-choice]")?.dataset.battleChoice;
   if (choice) chooseBattleAnswer(choice);
   const reaction = event.target.closest("[data-battle-reaction]")?.dataset.battleReaction;
@@ -1897,7 +2502,13 @@ document.addEventListener("click", (event) => {
 }, true);
 
 document.addEventListener("keydown", (event) => {
-  if (!el("[data-screen='battle-game']")?.classList.contains("is-active") || runtime.game?.locked) return;
+  if (!el("[data-screen='battle-game']")?.classList.contains("is-active") || !runtime.game) return;
+  if (runtime.game.pendingChoice && ["0", "1", "2", "3"].includes(event.key)) {
+    event.preventDefault();
+    chooseBattleWager(event.key);
+    return;
+  }
+  if (runtime.game.locked) return;
   if (event.key === "ArrowLeft") {
     event.preventDefault();
     chooseBattleAnswer("woman");
@@ -1962,13 +2573,24 @@ async function initializeBattle() {
 window.SpotCheckBattle = {
   getState: () => ({
     connected: Boolean(runtime.transport),
+    passPhone: Boolean(runtime.hotSeat),
     roomCode: runtime.invite ? roomCode(runtime.invite.roomId) : null,
     playerId: runtime.self?.playerId || null,
     isHost: isHost(),
     phase: runtime.roomState?.phase || null,
     players: runtime.players.size,
     network: runtime.transport?.diagnostics?.() || null,
-    game: runtime.game ? { index: runtime.game.index, points: runtime.game.points, correct: runtime.game.correct } : null,
+    results: runtime.roomState ? rankingResults().map(({ playerId, name, points, correct, answered, elapsedMs, timedOut }) => ({
+      playerId, name, points, correct, answered, elapsedMs, timedOut,
+    })) : [],
+    game: runtime.game ? {
+      index: runtime.game.index,
+      points: runtime.game.points,
+      correct: runtime.game.correct,
+      combo: runtime.game.combo,
+      bestCombo: runtime.game.bestCombo,
+      pendingWager: Boolean(runtime.game.pendingChoice),
+    } : null,
   }),
   leave: leaveBattle,
 };

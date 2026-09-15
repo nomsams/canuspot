@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="music.js" defer></script>
-    <script src="battle.js?v=20260911-1" defer></script>
-    <script src="app.js?v=20260911-1" defer></script>
+    <link rel="stylesheet" href="styles.css?v=20260915-1" />
+    <script src="music.js?v=20260915-1" defer></script>
+    <script src="battle.js?v=20260915-1" defer></script>
+    <script src="app.js?v=20260915-1" defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -49,7 +49,10 @@
                 <span><strong id="intro-plays">0</strong> plays</span>
               </div>
               <button class="start-button" type="button" data-action="start">Start <span aria-hidden="true">→</span></button>
-              <button class="battle-launch" type="button" data-battle-action="open"><span aria-hidden="true">⚔</span> Live Battle <small>Multiplayer</small></button>
+              <div class="battle-launch-group" aria-label="Battle modes">
+                <button class="battle-launch" type="button" data-battle-action="open"><span aria-hidden="true">⚔</span> Live Battle <small>Everyone's phone</small></button>
+                <button class="pass-phone-launch" type="button" data-battle-action="pass-phone"><span aria-hidden="true">↻</span><strong>Pass the phone</strong><small>One device</small></button>
+              </div>
             </div>
           </div>
           <p class="consent-note">A perception quiz using creator-labelled portraits. Not a claim about anyone's identity. No personal data collected.</p>
@@ -168,6 +171,52 @@
           <p class="detail-hint">Swipe to navigate, pinch to zoom up to 1.8×, or use the buttons.</p>
         </section>
 
+        <section class="screen battle-screen pass-phone-setup-screen" data-screen="pass-phone-setup" aria-labelledby="pass-phone-title">
+          <div class="battle-topbar">
+            <span class="battle-connection is-live">Local</span>
+            <span class="battle-kicker">↻ Pass the phone</span>
+            <button class="battle-icon-button" type="button" data-battle-action="leave" aria-label="Close pass-the-phone setup">×</button>
+          </div>
+          <div class="pass-phone-hero">
+            <p class="eyebrow">One phone · zero excuses</p>
+            <h1 id="pass-phone-title">Name the victims.</h1>
+            <p>Each player gets the same portraits in a different order. Hand over the phone when told.</p>
+          </div>
+          <section class="battle-panel pass-phone-player-panel">
+            <div class="battle-section-title"><div><p class="eyebrow">Players</p><h2>Who's brave enough?</h2></div><span id="pass-phone-player-count">2 / 8</span></div>
+            <div class="pass-phone-player-list" id="pass-phone-player-list"></div>
+            <button class="pass-phone-add" type="button" data-battle-action="pass-add-player">＋ Add another victim</button>
+          </section>
+          <section class="battle-panel battle-settings">
+            <div class="battle-section-title"><div><p class="eyebrow">Rules</p><h2>Make it hurt</h2></div><span>Same for all</span></div>
+            <div class="battle-setting-row">
+              <div><strong>Cards each</strong><small>Same set, shuffled order</small></div>
+              <div class="battle-stepper"><button type="button" data-battle-action="pass-cards-down" aria-label="Decrease cards">−</button><output id="pass-phone-card-count">10</output><button type="button" data-battle-action="pass-cards-up" aria-label="Increase cards">＋</button></div>
+            </div>
+            <div class="battle-setting-row battle-timer-setting">
+              <div><strong>Time each</strong><small>No hiding behind the clock</small></div>
+              <select id="pass-phone-timer">
+                <option value="60">1 minute</option>
+                <option value="90" selected>90 seconds</option>
+                <option value="120">2 minutes</option>
+                <option value="180">3 minutes</option>
+              </select>
+            </div>
+          </section>
+          <button class="battle-primary pass-phone-start" type="button" data-battle-action="pass-start">Start the public humiliation <span>→</span></button>
+        </section>
+
+        <section class="screen battle-screen pass-phone-handoff-screen" data-screen="pass-phone-handoff" aria-labelledby="pass-phone-handoff-name">
+          <div class="pass-phone-handoff-card">
+            <span class="pass-phone-lock" aria-hidden="true">🔒</span>
+            <p class="eyebrow" id="pass-phone-turn-label">Player 1 of 2</p>
+            <h1 id="pass-phone-handoff-name">Alex</h1>
+            <p id="pass-phone-handoff-roast">Take the phone. Everyone else: stop peeking.</p>
+            <button class="battle-primary" type="button" data-battle-action="pass-go">I'm ready. Ruin me. <span>→</span></button>
+            <button class="battle-secondary" type="button" data-battle-action="leave">Quit while dignity remains</button>
+          </div>
+        </section>
+
         <section class="screen battle-screen battle-lobby-screen" data-screen="battle-lobby" aria-labelledby="battle-lobby-title">
           <h1 class="sr-only" id="battle-lobby-title">Live Battle room</h1>
           <div class="battle-topbar">
@@ -232,7 +281,7 @@
               <ul class="battle-rules">
                 <li>Correct answer: <strong>10 points</strong></li>
                 <li>Fast answer: <strong>up to +5</strong></li>
-                <li>Maximum: <strong>15 per card</strong></li>
+                <li>Confidence + combo: <strong>up to +6</strong></li>
               </ul>
             </section>
 
@@ -267,14 +316,28 @@
             <button class="battle-icon-button" type="button" data-battle-action="leave" aria-label="Leave battle">×</button>
             <div class="battle-timer"><span>TIME</span><strong id="battle-time-left">03:00</strong></div>
             <div class="battle-points"><span>POINTS</span><strong id="battle-points">0</strong></div>
+            <div class="battle-combo" id="battle-combo"><span>COMBO</span><strong>0×</strong></div>
           </div>
           <div class="battle-progress-copy"><span>Card <b id="battle-card-number">1</b>/<span id="battle-card-total">20</span></span><span id="battle-speed-hint">+5 speed available</span></div>
+          <p class="battle-rival-callout" id="battle-rival-callout" aria-live="polite">First place is sitting there. Go steal it.</p>
           <div class="battle-deck" id="battle-deck">
             <div class="battle-portrait-fill" id="battle-portrait-fill" aria-hidden="true"></div>
             <img id="battle-portrait" alt="Battle portrait" draggable="false" />
             <div class="battle-answer-stamp" id="battle-answer-stamp" aria-hidden="true"></div>
             <div class="battle-peer-reactions" id="battle-peer-reactions" aria-live="polite"></div>
+            <div class="battle-wager" id="battle-wager" hidden>
+              <p>Answer locked</p>
+              <h2>How sure are you?</h2>
+              <div class="battle-wager-options">
+                <button type="button" data-battle-wager="0"><strong>0</strong><small>Play scared</small></button>
+                <button type="button" data-battle-wager="1"><strong>＋1</strong><small>Back yourself</small></button>
+                <button type="button" data-battle-wager="2"><strong>＋2</strong><small>Talk is cheap</small></button>
+                <button type="button" data-battle-wager="3"><strong>＋3</strong><small>Unhinged</small></button>
+              </div>
+              <small>Right: win it · Wrong: lose it</small>
+            </div>
           </div>
+          <div class="battle-combo-burst" id="battle-combo-burst" aria-hidden="true"></div>
           <div class="battle-reactions" aria-label="React to this portrait">
             <button type="button" data-battle-reaction="😂" aria-label="React laughing">😂</button>
             <button type="button" data-battle-reaction="🤔" aria-label="React thinking">🤔</button>
@@ -300,6 +363,12 @@
         <section class="screen battle-screen battle-results-screen" data-screen="battle-results" aria-labelledby="battle-results-title">
           <div class="battle-results-hero"><span aria-hidden="true">🏆</span><p class="eyebrow">Battle complete</p><h1 id="battle-results-title">Party rankings</h1><p id="battle-results-note">Points reward accuracy and speed.</p></div>
           <ol class="battle-leaderboard" id="battle-leaderboard"></ol>
+          <section class="battle-title-vault" id="battle-title-vault">
+            <p class="eyebrow">Title unlocked</p>
+            <h2 id="battle-earned-title">Unlicensed Guess Merchant</h2>
+            <p id="battle-title-roast">A title is cheaper than dignity.</p>
+            <div class="battle-title-collection" id="battle-title-collection"></div>
+          </section>
           <section class="battle-panel battle-chat-panel">
             <div class="battle-section-title"><div><p class="eyebrow">After party</p><h2>Battle chat</h2></div><span>P2P</span></div>
             <ol class="battle-chat-log" id="battle-results-chat-log"></ol>

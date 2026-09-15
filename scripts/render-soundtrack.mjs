@@ -200,6 +200,34 @@ function renderEffect(success) {
   return samples;
 }
 
+function renderComboEffect(level) {
+  const notesByLevel = {
+    3: [67, 71, 74],
+    5: [67, 71, 74, 79],
+    10: [67, 74, 79, 83, 86],
+  };
+  const notes = notesByLevel[level];
+  const step = level === 10 ? 0.065 : 0.082;
+  const duration = step * (notes.length - 1) + 0.34;
+  const samples = new Float32Array(Math.round(SAMPLE_RATE * duration));
+  notes.forEach((note, index) => {
+    addTone(samples, {
+      start: index * step,
+      duration: 0.24 + index * 0.018,
+      note,
+      amplitude: level === 10 ? 0.28 : 0.32,
+      voice: index === notes.length - 1 ? "bell" : "pluck",
+    });
+  });
+  if (level >= 5) addWoodClick(samples, 0, 0.09);
+  if (level === 10) {
+    addTone(samples, { start: 0.02, duration: duration - 0.03, note: 55, amplitude: 0.11, voice: "bass" });
+    addTone(samples, { start: notes.length * step - 0.02, duration: 0.28, note: 91, amplitude: 0.18, voice: "bell" });
+  }
+  finishMix(samples);
+  return samples;
+}
+
 function encodeWave(samples) {
   const dataSize = samples.length * 2;
   const output = Buffer.alloc(44 + dataSize);
@@ -237,4 +265,7 @@ await mkdir(outputDirectory, { recursive: true });
 for (const track of TRACKS) await writeOrCheck(track.filename, encodeWave(renderTrack(track)));
 await writeOrCheck("correct.wav", encodeWave(renderEffect(true)));
 await writeOrCheck("wrong.wav", encodeWave(renderEffect(false)));
-console.log(checkOnly ? "Pre-rendered soundtrack is current." : "Rendered five soundtrack loops and two answer cues.");
+await writeOrCheck("combo-3.wav", encodeWave(renderComboEffect(3)));
+await writeOrCheck("combo-5.wav", encodeWave(renderComboEffect(5)));
+await writeOrCheck("combo-10.wav", encodeWave(renderComboEffect(10)));
+console.log(checkOnly ? "Pre-rendered soundtrack is current." : "Rendered five soundtrack loops and five game cues.");
